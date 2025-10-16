@@ -5,7 +5,40 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.1] - 2025-01-16
+## [3.0.2] - 2025-10-15
+
+### Added
+- **POW Module** (`src/pow.py`) - Implements `docs/blockchain/pow.md` specification
+  - ProblemRegistry class with generate/solve/verify methods
+  - Commit-reveal protocol helpers (derive_epoch_salt, create_commitment, verify_commitment)
+  - Problem encoding/decoding for deterministic serialization
+  - DifficultyAdjuster class with EWMA-based adjustment
+  - Work score calculation integration
+  - Anti-grinding mechanisms
+- **Storage Module** (`src/storage.py`) - Implements `docs/blockchain/storage.md` specification
+  - StorageManager class with SQLite database backend
+  - IPFS client integration for proof bundle storage
+  - Node role support (light, full, miner, archive)
+  - Pruning strategies per node role
+  - Database schema with column families (headers, blocks, tips, work_index, commit_index, peer_index)
+  - Batch write operations and durability features
+- `requirements.txt` file documenting external dependencies
+
+### Changed
+- Storage module uses capacity terminology throughout
+- POW module wraps existing problem-solving functions
+- Both modules include comprehensive test suites
+
+### Fixed
+- Missing requests dependency handled gracefully with proper error messages
+- Import errors resolved with type hints and fallback imports
+
+### Documentation
+- All code includes docstrings referencing specifications
+- Comprehensive inline comments for complex logic
+- Test suites demonstrate proper usage
+
+## [3.0.1] - 2025-10-15
 
 ### Added
 - Diversity bonus mechanism for underrepresented capacities
