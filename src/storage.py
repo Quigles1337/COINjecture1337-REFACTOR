@@ -184,7 +184,7 @@ class IPFSClient:
             return self._is_healthy
         
         try:
-            self._make_request("id")
+            self._make_request("id", method="POST")
             self._is_healthy = True
         except Exception:
             self._is_healthy = False
