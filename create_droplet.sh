@@ -25,6 +25,7 @@ curl -X POST \
         "region": "sfo2",
         "image": "ubuntu-22-04-x64",
         "vpc_uuid": "d6343e1b-4802-423e-9244-b0a244fbd920",
+        "ssh_keys": ["YOUR_SSH_KEY_FINGERPRINT"],
         "tags": ["coinjecture", "faucet", "api", "blockchain"],
         "monitoring": true,
         "backups": false,
