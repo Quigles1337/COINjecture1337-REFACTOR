@@ -9,6 +9,7 @@ import os
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from .coupling_config import ETA, CACHE_READ_INTERVAL, CouplingState
 
 
 class CacheManager:
@@ -18,16 +19,23 @@ class CacheManager:
     Reads from JSON cache files and provides validated data to the API.
     """
     
-    def __init__(self, cache_dir: str = "data/cache"):
+    def __init__(self, cache_dir: str = "data/cache", blockchain_state_path: str = "data/blockchain_state.json"):
         """
-        Initialize cache manager.
+        Initialize cache manager with η-damped polling.
         
         Args:
-            cache_dir: Directory containing cache files
+            cache_dir: Directory containing cache files (legacy)
+            blockchain_state_path: Path to shared blockchain state from consensus
         """
         self.cache_dir = Path(cache_dir)
+        self.blockchain_state_path = blockchain_state_path
         self.latest_block_file = self.cache_dir / "latest_block.json"
         self.blocks_history_file = self.cache_dir / "blocks_history.json"
+        
+        # η-damped polling state
+        self.coupling_state = CouplingState()
+        self.cached_blocks = {}
+        self.last_poll_time = 0.0
         
         # Ensure cache directory exists
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -89,7 +97,7 @@ class CacheManager:
     
     def get_latest_block(self) -> Dict[str, Any]:
         """
-        Get the latest block from cache.
+        Get the latest block from cache with η-damped polling.
         
         Returns:
             Latest block data
@@ -99,6 +107,16 @@ class CacheManager:
             FileNotFoundError: If cache file doesn't exist
         """
         try:
+            # Check η-damped timing
+            if self.coupling_state.can_read():
+                self._poll_blockchain_state()
+                self.coupling_state.record_read()
+            
+            # Return cached data
+            if 'latest_block' in self.cached_blocks:
+                return self.cached_blocks['latest_block']
+            
+            # Fallback to legacy cache
             block_data = self._read_json(self.latest_block_file)
             self._validate_block_data(block_data)
             return block_data
@@ -232,6 +250,32 @@ class CacheManager:
                 "cache_available": False,
                 "error": str(e)
             }
+    
+    def _poll_blockchain_state(self):
+        """
+        Poll blockchain state from consensus with η-damped timing.
+        Lightweight validation - trust consensus output.
+        """
+        try:
+            if not os.path.exists(self.blockchain_state_path):
+                return  # No blockchain state yet
+            
+            with open(self.blockchain_state_path, 'r') as f:
+                blockchain_state = json.load(f)
+            
+            # Lightweight validation (trust consensus)
+            if 'latest_block' in blockchain_state:
+                self.cached_blocks['latest_block'] = blockchain_state['latest_block']
+            
+            if 'blocks' in blockchain_state:
+                self.cached_blocks['blocks'] = blockchain_state['blocks']
+            
+            # Update last poll time
+            self.last_poll_time = time.time()
+            
+        except Exception as e:
+            # Silent fail - fallback to legacy cache
+            pass
 
 
 if __name__ == "__main__":
