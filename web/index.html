@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>COINjecture Frontend</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <h1>COINjecture</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="docs" aria-selected="true">API Docs</button>
+      <button class="tab" data-tab="console" aria-selected="false">Live Console</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-docs" class="tab-panel active" role="tabpanel" aria-labelledby="docs">
+      <article id="docs-content" class="markdown-body">
+        <p>Loading documentation…</p>
+      </article>
+    </section>
+
+    <section id="tab-console" class="tab-panel" role="tabpanel" aria-labelledby="console">
+      <div class="controls">
+        <label for="endpoint">Endpoint</label>
+        <input id="endpoint" type="url" value="http://167.172.213.70:5000/v1/data/block/latest" spellcheck="false">
+        <button id="fetchBtn">Fetch</button>
+        <label class="auto-refresh">
+          <input id="autoRefresh" type="checkbox"> Auto-refresh
+        </label>
+        <select id="refreshInterval">
+          <option value="5">5s</option>
+          <option value="10" selected>10s</option>
+          <option value="30">30s</option>
+          <option value="60">60s</option>
+        </select>
+        <span id="status" class="status">Idle</span>
+      </div>
+
+      <div class="response">
+        <pre id="responsePre" class="code"></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Frontend is static and reads live data from the API endpoint.</span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
+

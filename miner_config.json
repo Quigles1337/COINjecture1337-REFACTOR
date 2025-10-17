@@ -1,0 +1,13 @@
+{
+  "role": "miner",
+  "data_dir": "./data",
+  "network_id": "coinjecture-mainnet",
+  "listen_addr": "0.0.0.0:8080",
+  "bootstrap_peers": [
+    "167.172.213.70:8080"
+  ],
+  "enable_user_submissions": true,
+  "ipfs_api_url": "http://167.172.213.70:5001",
+  "target_block_interval_secs": 30,
+  "log_level": "INFO"
+}

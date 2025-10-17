@@ -1,0 +1,22 @@
+# COINjecture External Dependencies
+# Install with: pip install -r requirements.txt
+
+# HTTP client for IPFS API integration and CLI telemetry
+requests>=2.25.0
+urllib3>=1.26.0,<2.0.0
+
+# Cryptographic operations for wallet and transaction signing
+cryptography>=41.0.0
+
+# Flask dependencies for Faucet API
+Flask>=2.0.0
+Flask-CORS>=3.0.0
+Flask-Limiter>=2.0.0
+
+# Optional compression dependencies for network module
+# zstandard>=0.18.0  # Uncomment for zstd compression support
+# python-snappy>=0.6.0  # Uncomment for snappy compression support
+
+# Optional: For production deployments
+# sqlite3 is included in Python standard library
+# LevelDB/RocksDB bindings can be added for production use
