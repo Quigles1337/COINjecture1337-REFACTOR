@@ -5,6 +5,28 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2025-10-17
+
+### Added
+- Wallet-Based Authentication: Using existing Ed25519 wallet system for mining authentication
+- Block Signing: Miners sign blocks with their wallet private key
+- Miner Addresses: Public key-derived addresses for reward distribution
+- Permissionless Mining: Anyone can generate wallet and mine without registration
+- Cryptographic Security: Ed25519 signatures for block verification
+- Self-Sovereign Identity: Miners control their own keys
+
+### Changed
+- Removed HMAC Shared Secret: Replaced with wallet signatures
+- BlockEvent Schema: Added miner_address, signature, public_key fields  
+- Open Mining: No API keys or credentials needed
+- Authentication Flow: Wallet signature verification instead of shared secrets
+
+### Security
+- Ed25519 Signatures: Industry-standard elliptic curve cryptography
+- Self-Sovereign Identity: Miners control their own keys
+- Decentralized: No central authentication authority
+- Permissionless: Anyone can download, generate wallet, and start mining
+
 ## [3.7.0] - 2025-10-17
 
 ### Fixed

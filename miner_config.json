@@ -4,7 +4,7 @@
   "network_id": "coinjecture-mainnet",
   "listen_addr": "0.0.0.0:8080",
   "bootstrap_peers": [
-    "167.172.213.70:8080"
+    "167.172.213.70:12345"
   ],
   "enable_user_submissions": true,
   "ipfs_api_url": "http://167.172.213.70:5001",

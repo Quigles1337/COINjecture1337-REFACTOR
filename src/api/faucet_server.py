@@ -152,32 +152,34 @@ class FaucetAPI:
         @self.limiter.limit("10 per minute")
         def ingest_block():
             try:
-                headers = request.headers
                 payload = request.get_json(force=True, silent=False) or {}
-                
-                # Enhanced authentication with user management
-                user_id = auth_manager.authenticate_request(payload, headers)
-                if not user_id:
-                    return jsonify({"status": "error", "error": "UNAUTHORIZED"}), 401
                 
                 # Validate block event format
                 ev = BlockEvent.from_json(payload)
                 
-                # Get user profile for additional validation
-                user_profile = auth_manager.get_user_profile(user_id)
-                if not user_profile or not user_profile.is_active:
-                    return jsonify({"status": "error", "error": "FORBIDDEN", "message": "User not active"}), 403
+                # Verify wallet signature instead of HMAC
+                signature = payload.get('signature', '')
+                public_key = payload.get('public_key', '')
                 
-                # Store block event with user attribution
-                payload['miner_id'] = user_id  # Ensure miner_id matches authenticated user
+                if not signature or not public_key:
+                    return jsonify({"status": "error", "error": "Missing signature or public_key"}), 400
+                
+                # Verify with existing Wallet class
+                block_data_for_verification = {k: v for k, v in payload.items() 
+                                               if k not in ['signature', 'public_key']}
+                
+                from tokenomics.wallet import Wallet
+                if not Wallet.verify_block_signature(public_key, block_data_for_verification, signature):
+                    return jsonify({"status": "error", "error": "Invalid signature"}), 401
+                
+                # Store block event
                 ok = self.ingest_store.insert_block_event(payload)
                 if not ok:
                     return jsonify({"status": "error", "error": "DUPLICATE"}), 409
                 
                 return jsonify({
                     "status": "accepted",
-                    "user_id": user_id,
-                    "tier": user_profile.tier
+                    "miner_address": payload.get('miner_address')
                 }), 202
             except ValueError as ve:
                 return jsonify({"status": "error", "error": "INVALID", "message": str(ve)}), 422

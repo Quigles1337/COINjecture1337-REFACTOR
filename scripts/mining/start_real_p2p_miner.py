@@ -20,6 +20,9 @@ from typing import Optional, Dict, Any
 # Add src to path
 sys.path.append('src')
 
+# Import wallet system
+from tokenomics.wallet import Wallet
+
 # Set up logging with file output
 log_dir = Path('logs')
 log_dir.mkdir(exist_ok=True)
@@ -45,6 +48,18 @@ class RealP2PMiningNode:
         self.peers_connected = 0
         self.miner_id = f"miner-{int(time.time())}"
         self.network_api_url = "http://167.172.213.70:5000"
+        
+        # Load or generate wallet
+        wallet_path = "config/miner_wallet.json"
+        if os.path.exists(wallet_path):
+            self.wallet = Wallet.load_from_file(wallet_path)
+            logger.info(f"🔑 Loaded existing wallet: {self.wallet.address}")
+        else:
+            self.wallet = Wallet.generate_new()
+            self.wallet.save_to_file(wallet_path)
+            logger.info(f"🔑 Created new wallet: {self.wallet.address}")
+        
+        logger.info(f"💰 Mining rewards will be sent to: {self.wallet.address}")
         self.shared_secret = "dev-secret"
         
     def validate_configuration(self) -> bool:
@@ -311,33 +326,31 @@ class RealP2PMiningNode:
         return hashlib.sha256("".join(tx_hashes).encode()).hexdigest()
     
     def submit_block_to_network(self, block: Any) -> bool:
-        """Submit mined block to the network using the blockchain.py format."""
+        """Submit mined block to the network using wallet-based authentication."""
         try:
             # Convert block to network format (only BlockEvent schema fields)
             block_data = {
-                "event_id": f"block-{int(time.time())}-{self.miner_id}",
+                "event_id": f"block-{int(time.time())}-{self.wallet.address}",
                 "block_index": block.index,
                 "block_hash": block.block_hash,
                 "cid": block.offchain_cid or f"Qm{hashlib.sha256(block.block_hash.encode()).hexdigest()[:44]}",
-                "miner_id": self.miner_id,
+                "miner_address": self.wallet.address,  # Use wallet address instead of miner_id
                 "capacity": block.mining_capacity.value,
                 "work_score": block.cumulative_work_score,
                 "ts": int(block.timestamp)
             }
             
-            timestamp = str(int(time.time()))
+            # Sign with wallet
+            signature = self.wallet.sign_block(block_data)
+            public_key = self.wallet.get_public_key_bytes().hex()
             
-            # Create signature from canonical body (without signature field)
-            signature = self.generate_hmac_signature(block_data)
-            
-            # Add signature to block data (required by network)
+            # Add signature and public key
             block_data["signature"] = signature
+            block_data["public_key"] = public_key
             
-            # Prepare headers
+            # Prepare headers (no HMAC needed)
             headers = {
-                'Content-Type': 'application/json',
-                'X-Signature': signature,
-                'X-Timestamp': timestamp
+                'Content-Type': 'application/json'
             }
             
             # Submit to network

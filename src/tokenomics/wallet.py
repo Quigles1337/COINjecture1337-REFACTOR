@@ -83,6 +83,48 @@ class Wallet:
         """
         return self.private_key.sign(transaction_data)
     
+    def sign_block(self, block_data: dict) -> str:
+        """
+        Sign block data with private key.
+        
+        Args:
+            block_data: Block data dictionary to sign
+            
+        Returns:
+            Signature as hex string
+        """
+        import json
+        canonical = json.dumps(block_data, sort_keys=True).encode()
+        signature = self.sign_transaction(canonical)
+        return signature.hex()
+    
+    @staticmethod
+    def verify_block_signature(public_key_hex: str, block_data: dict, signature_hex: str) -> bool:
+        """
+        Verify block signature.
+        
+        Args:
+            public_key_hex: Public key as hex string
+            block_data: Block data dictionary that was signed
+            signature_hex: Signature as hex string
+            
+        Returns:
+            True if signature is valid
+        """
+        import json
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        
+        canonical = json.dumps(block_data, sort_keys=True).encode()
+        pub_bytes = bytes.fromhex(public_key_hex)
+        sig_bytes = bytes.fromhex(signature_hex)
+        
+        public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+        try:
+            public_key.verify(sig_bytes, canonical)
+            return True
+        except:
+            return False
+    
     def verify_signature(self, data: bytes, signature: bytes) -> bool:
         """
         Verify signature against data using public key.

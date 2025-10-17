@@ -27,7 +27,7 @@ class IngestStore:
                 """
                 CREATE TABLE IF NOT EXISTS telemetry (
                     event_id TEXT PRIMARY KEY,
-                    miner_id TEXT,
+                    miner_address TEXT,
                     ts REAL,
                     capacity TEXT,
                     metrics_json TEXT,
@@ -44,7 +44,7 @@ class IngestStore:
                     block_index INTEGER,
                     block_hash TEXT,
                     cid TEXT,
-                    miner_id TEXT,
+                    miner_address TEXT,
                     capacity TEXT,
                     work_score REAL,
                     ts REAL,
@@ -54,7 +54,7 @@ class IngestStore:
                 """
             )
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry(ts)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_miner ON telemetry(miner_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_miner ON telemetry(miner_address)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_block_ts ON block_events(ts)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_block_index ON block_events(block_index)")
             conn.commit()
@@ -65,12 +65,12 @@ class IngestStore:
                 cur = conn.cursor()
                 cur.execute(
                     """
-                    INSERT INTO telemetry(event_id, miner_id, ts, capacity, metrics_json, node_json, sig, created_at)
+                    INSERT INTO telemetry(event_id, miner_address, ts, capacity, metrics_json, node_json, sig, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         ev["event_id"],
-                        ev["miner_id"],
+                        ev["miner_address"],
                         float(ev["ts"]),
                         ev["capacity"],
                         json.dumps(ev.get("metrics", {})),
@@ -90,7 +90,7 @@ class IngestStore:
                 cur = conn.cursor()
                 cur.execute(
                     """
-                    INSERT INTO block_events(event_id, block_index, block_hash, cid, miner_id, capacity, work_score, ts, sig, created_at)
+                    INSERT INTO block_events(event_id, block_index, block_hash, cid, miner_address, capacity, work_score, ts, sig, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
@@ -98,7 +98,7 @@ class IngestStore:
                         int(ev["block_index"]),
                         ev["block_hash"],
                         ev["cid"],
-                        ev["miner_id"],
+                        ev["miner_address"],
                         ev["capacity"],
                         float(ev["work_score"]),
                         float(ev["ts"]),
@@ -115,7 +115,7 @@ class IngestStore:
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT event_id, miner_id, ts, capacity, metrics_json, node_json FROM telemetry ORDER BY ts DESC LIMIT ?",
+                "SELECT event_id, miner_address, ts, capacity, metrics_json, node_json FROM telemetry ORDER BY ts DESC LIMIT ?",
                 (limit,),
             )
             rows = cur.fetchall()
@@ -124,7 +124,7 @@ class IngestStore:
             out.append(
                 {
                     "event_id": r[0],
-                    "miner_id": r[1],
+                    "miner_address": r[1],
                     "ts": r[2],
                     "capacity": r[3],
                     "metrics": json.loads(r[4] or "{}"),
@@ -137,7 +137,7 @@ class IngestStore:
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT event_id, block_index, block_hash, cid, miner_id, capacity, work_score, ts FROM block_events ORDER BY ts DESC LIMIT ?",
+                "SELECT event_id, block_index, block_hash, cid, miner_address, capacity, work_score, ts FROM block_events ORDER BY ts DESC LIMIT ?",
                 (limit,),
             )
             rows = cur.fetchall()
@@ -149,7 +149,7 @@ class IngestStore:
                     "block_index": r[1],
                     "block_hash": r[2],
                     "cid": r[3],
-                    "miner_id": r[4],
+                    "miner_address": r[4],
                     "capacity": r[5],
                     "work_score": r[6],
                     "ts": r[7],

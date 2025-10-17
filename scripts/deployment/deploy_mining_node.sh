@@ -24,7 +24,7 @@ PID_FILE="mining_node.pid"
 LOG_FILE="$LOGS_DIR/mining.log"
 
 # P2P Network configuration
-BOOTSTRAP_PEERS=("167.172.213.70:8080")
+BOOTSTRAP_PEERS=("167.172.213.70:12345")
 
 print_banner() {
     echo -e "${BLUE}"
@@ -134,7 +134,7 @@ config = {
     "data_dir": "./data",
     "network_id": "coinjecture-mainnet", 
     "listen_addr": "0.0.0.0:8080",
-    "bootstrap_peers": ["167.172.213.70:8080"],
+    "bootstrap_peers": ["167.172.213.70:12345"],
     "enable_user_submissions": True,
     "ipfs_api_url": "http://167.172.213.70:5001",
     "target_block_interval_secs": 30,
@@ -156,6 +156,24 @@ EOF
     rm create_config.py
     
     log "✅ Miner configuration created: miner_config.json"
+    
+    # Generate wallet on first run
+    if [ ! -f "config/miner_wallet.json" ]; then
+        log "🔑 Generating miner wallet..."
+        python3 -c "
+import sys
+sys.path.append('src')
+from tokenomics.wallet import Wallet
+
+wallet = Wallet.generate_new()
+wallet.save_to_file('config/miner_wallet.json')
+print(f'✅ Wallet created: {wallet.address}')
+print(f'💰 Mining rewards will be sent to this address')
+"
+        log "💰 Mining rewards will be sent to your wallet address"
+    else
+        log "🔑 Using existing wallet"
+    fi
 }
 
 check_network_connectivity() {

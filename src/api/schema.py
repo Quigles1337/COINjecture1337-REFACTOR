@@ -49,11 +49,12 @@ class BlockEvent:
     block_index: int
     block_hash: str
     cid: str
-    miner_id: str
+    miner_address: str  # Changed from miner_id to miner_address
     capacity: str
     work_score: float
     ts: float
     signature: str = ""
+    public_key: str = ""  # Added for signature verification
 
     @staticmethod
     def from_json(obj: Dict[str, Any]) -> "BlockEvent":
@@ -62,7 +63,7 @@ class BlockEvent:
             "block_index",
             "block_hash",
             "cid",
-            "miner_id",
+            "miner_address",
             "capacity",
             "work_score",
             "ts",
@@ -82,11 +83,12 @@ class BlockEvent:
             block_index=int(obj["block_index"]),
             block_hash=str(obj["block_hash"]),
             cid=str(obj["cid"]),
-            miner_id=str(obj["miner_id"]),
+            miner_address=str(obj["miner_address"]),
             capacity=str(obj["capacity"]),
             work_score=float(obj["work_score"]),
             ts=float(obj["ts"]),
             signature=str(obj["signature"]),
+            public_key=str(obj.get("public_key", "")),
         )
 
 
