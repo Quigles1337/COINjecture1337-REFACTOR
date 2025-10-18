@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.9.10] - 2025-10-18
 
+### Added
+- **Community Bounty System**: Introduced 100 COIN token bounty for wallet loading compatibility fix
+- **Soft Purple Theme**: Updated web interface from green to elegant soft purple color scheme
+- **Enhanced Error Logging**: Added detailed validation error logging for debugging
+
 ### Fixed
 - **Web Wallet Ed25519 Key Generation**: Fixed Ed25519 key generation and signature verification
   - Web interface now generates proper Ed25519 key pairs instead of HMAC keys
@@ -14,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated signature generation to use Ed25519 instead of HMAC-SHA256
   - Resolved 422 "An Ed25519 public key is 32 bytes long" validation error
   - Fixed undefined `keyMaterial` variable in wallet creation
+
+### Changed
+- **UI Theme**: Updated all green colors (#00ff00) to soft purple (#9d7ce8)
+- **Background Colors**: Changed green-tinted backgrounds to purple-tinted (#2a1a3a)
+- **Visual Elements**: Applied purple theme to navigation, terminal, buttons, and success states
 
 ### Known Issues
 - **Wallet Loading Bug**: Ed25519 key loading fails with "Ed25519 key data must be 256 bits" error
@@ -26,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Key Storage**: Private key stored as PKCS8 format, public key as raw 32-byte format
 - **Signature Generation**: Uses Ed25519 private key for signing, public key for verification
 - **Backend Compatibility**: Matches backend `src/tokenomics/wallet.py` Ed25519 expectations
+- **Theme Colors**: Soft purple (#9d7ce8) for primary elements, purple-tinted backgrounds for consistency
 
 ## [3.9.9] - 2025-10-18
 

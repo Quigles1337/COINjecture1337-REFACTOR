@@ -61,7 +61,7 @@ COINjecture is a utility-based blockchain that proves computational work through
 ## 🚀 Download & Install
 
 ### **macOS Users (Recommended)**
-**[Download COINjecture-macOS-v3.6.6-Final.zip](cli-packages/COINjecture-macOS-v3.6.6-Final.zip)** (39.2 MB)
+**[Download COINjecture-macOS-v3.9.10-Final.zip](cli-packages/COINjecture-macOS-v3.9.10-Final.zip)** (39.2 MB)
 
 **Features:**
 - ✅ **Zero Security Warnings**: Comprehensive security bypass
