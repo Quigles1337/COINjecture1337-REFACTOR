@@ -5,6 +5,28 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.16] - 2025-10-18
+
+### Added
+- **All Blocks Endpoint**: `/v1/data/blocks/all` - Get all blocks in the blockchain for blockchain explorers
+- **IPFS List Endpoint**: `/v1/data/ipfs/list` - List all available IPFS CIDs
+- **IPFS Search Endpoint**: `/v1/data/ipfs/search?q={query}` - Search IPFS data by content or metadata
+- **Enhanced IPFS Data**: `/v1/data/ipfs/{cid}` - Improved IPFS data retrieval with better error handling
+- **API Documentation**: Updated root endpoint with new API endpoints
+
+### Improved
+- **Blockchain Data Access**: Complete blockchain data available via API
+- **IPFS Integration**: Full IPFS data discovery and search capabilities
+- **API Discoverability**: Enhanced API documentation with all available endpoints
+- **Data Exploration**: Better tools for blockchain and IPFS data analysis
+
+### Technical Details
+- **New Endpoints**: 4 new API endpoints for comprehensive data access
+- **Cache Manager**: Enhanced with `get_all_blocks()`, `get_ipfs_data()`, `list_ipfs_cids()`, `search_ipfs_data()` methods
+- **IPFS Support**: Full IPFS CID listing, searching, and data retrieval
+- **Blockchain Explorer**: Complete blockchain data access for external tools
+- **Search Functionality**: Content-based search across IPFS data and blockchain blocks
+
 ## [3.9.15] - 2025-10-18
 
 ### Fixed

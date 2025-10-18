@@ -87,7 +87,10 @@ class FaucetAPI:
                     "latest_block": "/v1/data/block/latest",
                     "block_by_index": "/v1/data/block/{index}",
                     "block_range": "/v1/data/blocks?start={start}&end={end}",
+                    "all_blocks": "/v1/data/blocks/all",
                     "ipfs_data": "/v1/data/ipfs/{cid}",
+                    "ipfs_list": "/v1/data/ipfs/list",
+                    "ipfs_search": "/v1/data/ipfs/search?q={query}",
                     "telemetry_ingest": "/v1/ingest/telemetry",
                     "block_ingest": "/v1/ingest/block",
                     "latest_telemetry": "/v1/display/telemetry/latest",
@@ -338,15 +341,113 @@ class FaucetAPI:
                     "message": str(e)
                 }), 500
         
+        @self.app.route('/v1/data/blocks/all', methods=['GET'])
+        @self.limiter.limit("50 per minute")
+        def get_all_blocks():
+            """Get all blocks in the blockchain."""
+            try:
+                # Get all blocks from cache
+                all_blocks = self.cache_manager.get_all_blocks()
+                
+                return jsonify({
+                    "status": "success",
+                    "data": all_blocks,
+                    "meta": {
+                        "total_blocks": len(all_blocks),
+                        "api_version": "v1",
+                        "cached_at": time.time()
+                    }
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
+
         @self.app.route('/v1/data/ipfs/<cid>', methods=['GET'])
         @self.limiter.limit("50 per minute")
         def get_ipfs_data(cid: str):
-            """Get IPFS data by CID (placeholder for future implementation)."""
-            return jsonify({
-                "status": "error",
-                "error": "Not implemented",
-                "message": "IPFS integration coming soon"
-            }), 501
+            """Get IPFS data by CID."""
+            try:
+                # Try to get IPFS data from cache
+                ipfs_data = self.cache_manager.get_ipfs_data(cid)
+                if ipfs_data:
+                    return jsonify({
+                        "status": "success",
+                        "data": ipfs_data,
+                        "meta": {
+                            "cid": cid,
+                            "api_version": "v1"
+                        }
+                    })
+                else:
+                    return jsonify({
+                        "status": "error",
+                        "error": "IPFS data not found",
+                        "message": f"CID {cid} not found in cache"
+                    }), 404
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
+
+        @self.app.route('/v1/data/ipfs/list', methods=['GET'])
+        @self.limiter.limit("100 per minute")
+        def list_ipfs_data():
+            """List all available IPFS CIDs."""
+            try:
+                # Get list of all IPFS CIDs from cache
+                ipfs_list = self.cache_manager.list_ipfs_cids()
+                
+                return jsonify({
+                    "status": "success",
+                    "data": ipfs_list,
+                    "meta": {
+                        "total_cids": len(ipfs_list),
+                        "api_version": "v1"
+                    }
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
+
+        @self.app.route('/v1/data/ipfs/search', methods=['GET'])
+        @self.limiter.limit("100 per minute")
+        def search_ipfs_data():
+            """Search IPFS data by content or metadata."""
+            try:
+                query = request.args.get('q', '')
+                if not query:
+                    return jsonify({
+                        "status": "error",
+                        "error": "Missing query parameter",
+                        "message": "Query parameter 'q' is required"
+                    }), 400
+                
+                # Search IPFS data
+                results = self.cache_manager.search_ipfs_data(query)
+                
+                return jsonify({
+                    "status": "success",
+                    "data": results,
+                    "meta": {
+                        "query": query,
+                        "results_count": len(results),
+                        "api_version": "v1"
+                    }
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
         
         # ============================================
         # WALLET ENDPOINTS

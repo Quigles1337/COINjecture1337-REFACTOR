@@ -251,6 +251,169 @@ class CacheManager:
                 "error": str(e)
             }
     
+    def get_all_blocks(self) -> List[Dict[str, Any]]:
+        """
+        Get all blocks in the blockchain.
+        
+        Returns:
+            List of all blocks
+        """
+        try:
+            # Read from blockchain state
+            if os.path.exists(self.blockchain_state_path):
+                with open(self.blockchain_state_path, 'r') as f:
+                    blockchain_state = json.load(f)
+                
+                # Get all blocks from blockchain state
+                all_blocks = []
+                if 'blocks' in blockchain_state:
+                    all_blocks = blockchain_state['blocks']
+                elif 'block_history' in blockchain_state:
+                    all_blocks = blockchain_state['block_history']
+                
+                return all_blocks
+            else:
+                # Fallback to cache files
+                blocks_history = self._read_json(self.blocks_history_file)
+                return blocks_history if blocks_history else []
+        except Exception as e:
+            print(f"Error getting all blocks: {e}")
+            return []
+    
+    def get_ipfs_data(self, cid: str) -> Optional[Dict[str, Any]]:
+        """
+        Get IPFS data by CID.
+        
+        Args:
+            cid: IPFS content identifier
+            
+        Returns:
+            IPFS data or None if not found
+        """
+        try:
+            # Read from blockchain state
+            if os.path.exists(self.blockchain_state_path):
+                with open(self.blockchain_state_path, 'r') as f:
+                    blockchain_state = json.load(f)
+                
+                # Look for IPFS data in blockchain state
+                if 'ipfs_data' in blockchain_state:
+                    ipfs_data = blockchain_state['ipfs_data']
+                    if cid in ipfs_data:
+                        return ipfs_data[cid]
+                
+                # Look in blocks for IPFS references
+                if 'blocks' in blockchain_state:
+                    for block in blockchain_state['blocks']:
+                        if block.get('cid') == cid:
+                            return {
+                                'cid': cid,
+                                'block_index': block.get('index'),
+                                'block_hash': block.get('block_hash'),
+                                'data': block.get('data', {}),
+                                'timestamp': block.get('timestamp')
+                            }
+            
+            return None
+        except Exception as e:
+            print(f"Error getting IPFS data for CID {cid}: {e}")
+            return None
+    
+    def list_ipfs_cids(self) -> List[str]:
+        """
+        List all available IPFS CIDs.
+        
+        Returns:
+            List of CIDs
+        """
+        try:
+            cids = []
+            
+            # Read from blockchain state
+            if os.path.exists(self.blockchain_state_path):
+                with open(self.blockchain_state_path, 'r') as f:
+                    blockchain_state = json.load(f)
+                
+                # Get CIDs from IPFS data
+                if 'ipfs_data' in blockchain_state:
+                    cids.extend(blockchain_state['ipfs_data'].keys())
+                
+                # Get CIDs from blocks
+                if 'blocks' in blockchain_state:
+                    for block in blockchain_state['blocks']:
+                        if 'cid' in block:
+                            cids.append(block['cid'])
+            
+            return list(set(cids))  # Remove duplicates
+        except Exception as e:
+            print(f"Error listing IPFS CIDs: {e}")
+            return []
+    
+    def search_ipfs_data(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Search IPFS data by content or metadata.
+        
+        Args:
+            query: Search query
+            
+        Returns:
+            List of matching IPFS data
+        """
+        try:
+            results = []
+            query_lower = query.lower()
+            
+            # Read from blockchain state
+            if os.path.exists(self.blockchain_state_path):
+                with open(self.blockchain_state_path, 'r') as f:
+                    blockchain_state = json.load(f)
+                
+                # Search in IPFS data
+                if 'ipfs_data' in blockchain_state:
+                    for cid, data in blockchain_state['ipfs_data'].items():
+                        if self._matches_query(data, query_lower):
+                            results.append({
+                                'cid': cid,
+                                'data': data,
+                                'type': 'ipfs_data'
+                            })
+                
+                # Search in blocks
+                if 'blocks' in blockchain_state:
+                    for block in blockchain_state['blocks']:
+                        if 'cid' in block and self._matches_query(block, query_lower):
+                            results.append({
+                                'cid': block['cid'],
+                                'block_index': block.get('index'),
+                                'block_hash': block.get('block_hash'),
+                                'data': block.get('data', {}),
+                                'timestamp': block.get('timestamp'),
+                                'type': 'block_data'
+                            })
+            
+            return results
+        except Exception as e:
+            print(f"Error searching IPFS data: {e}")
+            return []
+    
+    def _matches_query(self, data: Dict[str, Any], query: str) -> bool:
+        """
+        Check if data matches search query.
+        
+        Args:
+            data: Data to search in
+            query: Search query (lowercase)
+            
+        Returns:
+            True if data matches query
+        """
+        try:
+            # Convert data to string for searching
+            data_str = json.dumps(data, default=str).lower()
+            return query in data_str
+        except Exception:
+            return False
+    
     def _poll_blockchain_state(self):
         """
         Poll blockchain state from consensus with η-damped timing.
