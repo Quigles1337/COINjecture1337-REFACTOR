@@ -5,6 +5,26 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.15] - 2025-10-18
+
+### Fixed
+- **CRITICAL**: Fixed canonicalization mismatch between JavaScript and Python JSON serialization
+- **CRITICAL**: Implemented Python-compatible JSON serialization with default separators (', ', ': ')
+- **CRITICAL**: Resolved Ed25519 signature verification failures
+- **CRITICAL**: Desktop mining now works with 202 Accepted responses!
+
+### Added
+- **Desktop Mining Support**: ✅ WORKING! Desktop users can now mine successfully
+- **Python-Compatible JSON**: Frontend now matches Python's `json.dumps(obj, sort_keys=True)` exactly
+- **Enhanced Debugging**: Comprehensive logging for signature generation and verification
+
+### Technical Details
+- **JSON Serialization**: Matches Python's default separators `(', ', ': ')` with spaces
+- **Number Formatting**: Proper float handling with `Math.round(workScore * 100) / 100`
+- **Integer Timestamps**: `Math.floor(Date.now() / 1000)` for consistency
+- **Signature Verification**: Ed25519 signatures now verify correctly on backend
+- **Architecture Compliance**: Maintains COINjecture data flow patterns
+
 ## [3.9.14] - 2025-10-18
 
 ### Removed

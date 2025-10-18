@@ -495,28 +495,33 @@ class WebInterface {
       
       // Create the complete block data first
       const blockData = {
-        event_id: `web-mining-${Date.now()}-${tier}`,
-        block_index: currentBlock.index + 1,
         block_hash: blockHash,
-        cid: cid,
-        miner_address: minerAddress,
+        block_index: currentBlock.index + 1,
         capacity: tier.toUpperCase(),
-        work_score: Math.floor(workScore), // Make it an integer
-        ts: Math.floor(Date.now() / 1000) // Integer Unix timestamp
+        cid: cid,
+        event_id: `web-mining-${Date.now()}-${tier}`,
+        miner_address: minerAddress,
+        ts: Math.floor(Date.now() / 1000), // Integer Unix timestamp
+        work_score: Math.round(workScore * 100) / 100 // Round to 2 decimal places
       };
       
-      // Python-compatible JSON dumps with sort_keys=True, separators=(',', ':')
+      // Python-compatible JSON dumps with sort_keys=True and DEFAULT separators (', ', ': ')
       function pythonJsonDumps(obj) {
         const sortedKeys = Object.keys(obj).sort();
         let result = '{';
         sortedKeys.forEach((key, index) => {
-          if (index > 0) result += ',';
-          result += `"${key}":`;
+          if (index > 0) result += ', '; // Space after comma (Python default)
+          result += `"${key}": `; // Space after colon (Python default)
           const value = obj[key];
           if (typeof value === 'string') {
             result += `"${value}"`;
-          } else {
+          } else if (typeof value === 'number') {
+            // Python formats numbers intelligently
             result += String(value);
+          } else if (value === null) {
+            result += 'null';
+          } else {
+            result += JSON.stringify(value);
           }
         });
         result += '}';
@@ -524,7 +529,9 @@ class WebInterface {
       }
       
       const canonicalJson = pythonJsonDumps(blockData);
+      console.log('=== CANONICALIZATION DEBUG ===');
       console.log('Canonical JSON:', canonicalJson);
+      console.log('Length:', canonicalJson.length);
       
       const dataBuffer = new TextEncoder().encode(canonicalJson);
       
@@ -542,10 +549,12 @@ class WebInterface {
       // DEBUG: Log the signature calculation
       console.log('=== SIGNATURE DEBUG ===');
       console.log('Using browser native Ed25519 with Python-compatible JSON');
-      console.log('Data to sign:', canonicalJson);
+      console.log('Block data object:', blockData);
+      console.log('Canonical JSON string:', canonicalJson);
       console.log('Public key:', publicKey);
       console.log('Generated signature:', signatureHex);
       console.log('Signature length:', signatureHex.length);
+      console.log('Public key length:', publicKey.length);
       
       
       // Add signature and public_key to the block data

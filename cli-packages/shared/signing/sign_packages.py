@@ -20,7 +20,7 @@ class PackageSigner:
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.system = platform.system()
-        self.version = "3.9.14"
+        self.version = "3.9.15"
         
         # Signing configuration
         self.config = {

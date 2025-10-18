@@ -20,7 +20,7 @@ class PackageBuilder:
         self.cli_packages_dir = self.project_root / "cli-packages"
         self.dist_dir = self.project_root / "dist"
         self.packages_dir = self.dist_dir / "packages"
-        self.version = "3.9.14"
+        self.version = "3.9.15"
         
         # Create directories
         self.dist_dir.mkdir(exist_ok=True)
