@@ -5,6 +5,31 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.9] - 2025-01-27
+
+### Fixed
+- **Wallet Persistence**: Fixed Ed25519 private key storage and retrieval
+  - Private keys now properly exported in PKCS8 format for localStorage
+  - Private keys correctly reimported on wallet load for signing operations
+  - Wallet independence from mining operations - users can create wallets separately
+  - Proper signature verification enabling token rewards for web miners
+
+### Technical Details
+- **Private Key Export**: `crypto.subtle.exportKey("pkcs8", keyPair.privateKey)` for storage
+- **Private Key Import**: `crypto.subtle.importKey("pkcs8", ...)` for retrieval
+- **Wallet Persistence**: Ed25519 keys stored as hex strings in localStorage
+- **Signature Verification**: Real Ed25519 signatures that pass backend validation
+- **Token Rewards**: Web miners can now receive tokens for successful mining
+
+### Files Modified
+- `web/app.js` - Fixed wallet creation, storage, and signature generation
+- `CHANGELOG.md` - Documented wallet persistence fix
+
+### Security Notes
+- Private keys stored in browser localStorage (accessible to JavaScript)
+- Recommended for mobile mining and testing only
+- Desktop CLI recommended for serious mining operations
+
 ## [3.9.16] - 2025-10-18
 
 ### Added
