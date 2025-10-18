@@ -5,6 +5,28 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.10] - 2025-10-18
+
+### Fixed
+- **Web Wallet Ed25519 Key Generation**: Fixed Ed25519 key generation and signature verification
+  - Web interface now generates proper Ed25519 key pairs instead of HMAC keys
+  - Fixed public key export to use raw format (32 bytes) instead of SPKI format
+  - Updated signature generation to use Ed25519 instead of HMAC-SHA256
+  - Resolved 422 "An Ed25519 public key is 32 bytes long" validation error
+  - Fixed undefined `keyMaterial` variable in wallet creation
+
+### Known Issues
+- **Wallet Loading Bug**: Ed25519 key loading fails with "Ed25519 key data must be 256 bits" error
+  - Affects existing wallets created with previous versions
+  - New wallets work correctly
+  - **BOUNTY**: 100 COIN tokens for community fix of wallet loading compatibility
+
+### Technical Details
+- **Key Generation**: Uses browser's native `crypto.subtle.generateKey()` with Ed25519 algorithm
+- **Key Storage**: Private key stored as PKCS8 format, public key as raw 32-byte format
+- **Signature Generation**: Uses Ed25519 private key for signing, public key for verification
+- **Backend Compatibility**: Matches backend `src/tokenomics/wallet.py` Ed25519 expectations
+
 ## [3.9.9] - 2025-10-18
 
 ### Fixed
