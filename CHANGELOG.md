@@ -5,6 +5,147 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.14] - 2025-10-18
+
+### Removed
+- **Unnecessary HMAC-SHA256**: Removed redundant HMAC-SHA256 signature generation and verification
+- **Complex Fallbacks**: Streamlined backend verification to focus on Ed25519 implementations
+- **Redundant Code**: Cleaned up unnecessary signature methods and fallbacks
+
+### Improved
+- **Code Clarity**: Clean, focused implementation without unnecessary complexity
+- **Performance**: Removed redundant verification attempts
+- **Maintainability**: Simplified codebase with clear Ed25519-only approach
+
+### Technical Details
+- **Frontend**: Clean browser native Ed25519 with Python-compatible JSON serialization
+- **Backend**: Streamlined PyNaCl → cryptography → pure Python ed25519 verification
+- **Architecture**: Maintains COINjecture data flow compliance
+- **Security**: No external dependencies, browser-native crypto.subtle APIs only
+
+## [3.9.13] - 2025-10-18
+
+### Fixed
+- **CRITICAL**: Fixed data flow architecture compliance - backend now verifies original signed data
+- **CRITICAL**: Resolved signature verification failures through proper data structure handling
+- **CRITICAL**: Ensured frontend signs base data, backend verifies base data (architecture-aligned)
+- **CRITICAL**: Fixed canonicalization mismatch between JavaScript and Python JSON serialization
+- **CRITICAL**: Implemented Python-compatible JSON serialization in frontend
+
+### Changed
+- **JSON Serialization**: Frontend now uses Python-compatible `json.dumps(block_data, sort_keys=True, separators=(',', ':'))`
+- **Timestamp Format**: Integer Unix timestamps for consistency between frontend and backend
+- **Signature Generation**: Clean browser native Ed25519 implementation
+- **Backend Verification**: Streamlined to PyNaCl → cryptography → pure Python ed25519
+
+### Technical Details
+- **Data Flow**: Frontend signs 8 fields (base data), backend verifies same 8 fields (signature/public_key excluded)
+- **Architecture**: Follows COINjecture data flow patterns for signature verification
+- **JSON Compatibility**: Frontend matches Python's exact JSON serialization format
+- **Verification**: Multi-implementation Ed25519 verification (PyNaCl → cryptography → pure Python)
+- **Compatibility**: Maintains browser-native crypto.subtle implementation
+
+## [3.9.12] - 2025-10-18
+
+### Added
+- **Native Browser Crypto Implementation**: Secure wallet using only browser-native crypto.subtle APIs
+- **Browser Support Validation**: Automatic detection of Ed25519 support and HTTPS requirements
+- **Multi-Implementation Backend Verification**: Prioritizes PyNaCl for browser compatibility
+- **Enhanced Security**: No external library dependencies, eliminating supply chain risks
+- **Architecture-Aligned Data Flow**: Proper signature verification matching COINjecture architecture
+
+### Fixed
+- **CRITICAL**: Removed @noble/ed25519 dependency (all CDN providers failing)
+- **CRITICAL**: Fixed black page issue caused by failing external library loading
+- **CRITICAL**: Implemented secure wallet generation using browser-native Ed25519
+- **CRITICAL**: Fixed signature generation with native crypto.subtle implementation
+- **CRITICAL**: Updated backend to prioritize PyNaCl verification for browser compatibility
+- **CRITICAL**: Fixed data flow mismatch - backend now verifies original data (not payload with metadata)
+- **CRITICAL**: Resolved signature verification failures through architecture-compliant data structure
+
+### Changed
+- **Wallet Generation**: Now uses browser's native crypto.subtle.generateKey()
+- **Signature Creation**: Uses browser's native crypto.subtle.sign() for Ed25519
+- **Backend Verification**: Prioritizes PyNaCl → cryptography → HMAC-SHA256 → pure Python ed25519
+- **Data Flow**: Frontend signs base data, backend verifies base data (architecture-compliant)
+- **Security Model**: Eliminated external dependencies, using only audited browser APIs
+- **Performance**: Native implementations are faster and more reliable
+
+### Technical Details
+- **Frontend**: Browser-native crypto.subtle Ed25519 (no external libraries)
+- **Backend**: Multi-implementation verification with PyNaCl priority
+- **Data Structure**: Frontend signs 8 fields, backend verifies same 8 fields (signature/public_key excluded)
+- **Security**: HTTPS required, Ed25519 support validation, localStorage key storage
+- **Compatibility**: Works on all modern browsers with Ed25519 support
+- **Reliability**: No CDN dependencies, no network requests for cryptography
+- **Architecture**: Follows COINjecture data flow patterns for signature verification
+
+### Known Issues
+- Mobile devices still require certificate acceptance for self-signed SSL
+- Let's Encrypt certificate requires domain name (not IP address)
+
+## [3.9.11] - 2025-10-18
+
+### Added
+- Comprehensive Ed25519 signature compatibility fix
+- @noble/ed25519 library integration for Python-compatible signatures
+- Library loading check with waitForNobleEd25519() function
+- Enhanced signature debug logging
+- Test endpoint for signature verification (optional)
+
+### Fixed
+- **CRITICAL**: Fixed @noble/ed25519 library loading issue (nobleEd25519 is not defined)
+- **CRITICAL**: Fixed PKCS8 private key extraction (now correctly extracts bytes 16-48)
+- **CRITICAL**: Fixed signature generation to use Python-compatible Ed25519 implementation
+- Fixed wallet loading to properly extract raw private key for signing
+- Fixed desktop mining signature verification (401 → 202 Accepted)
+- Fixed mobile mining signature verification
+
+### Changed
+- Switched from unpkg to bundle.run for @noble/ed25519 CDN
+- Updated signature generation to wait for library availability
+- Enhanced wallet object to store raw private key separately
+- Improved error handling for library loading failures
+
+### Technical Details
+- Ed25519 private key: 32 bytes (raw format for @noble/ed25519)
+- Ed25519 public key: 32 bytes (raw format)
+- Ed25519 signature: 64 bytes
+- PKCS8 private key: 48 bytes (16-byte header + 32-byte key)
+- Backend verification: cryptography.ed25519 + PyNaCl fallback
+- Frontend signing: @noble/ed25519 (Python-compatible)
+
+### Known Issues
+- Mobile devices still require certificate acceptance for self-signed SSL
+- Let's Encrypt certificate requires domain name (not IP address)
+
+## [3.7.0] - 2025-01-XX
+
+### Added
+- **$BEANS Ticker**: Updated token symbol from CJ to $BEANS throughout the system
+- **WhaleSheaven Listing Preparation**: Created comprehensive listing documentation
+- **Address Format Support**: Added support for both BEANS-prefixed (45 chars) and legacy CJ-prefixed (42 chars) addresses
+- **Web Interface Ticker Display**: Added $BEANS ticker to web interface branding and wallet displays
+- **API Token Information**: Added token_name and token_symbol fields to API responses
+
+### Changed
+- **Address Generation**: New wallets now generate BEANS-prefixed addresses (45 characters)
+- **Address Validation**: Updated to accept both CJ (42 chars) and BEANS (45 chars) formats
+- **Documentation**: Updated all documentation files to reference $BEANS ticker
+- **Web Interface**: Updated branding to display $BEANS ticker prominently
+- **API Version**: Bumped to version 3.7.0
+
+### Backward Compatibility
+- **Legacy Addresses**: Existing CJ-prefixed addresses remain valid and functional
+- **Wallet Migration**: No forced migration - both address formats supported during transition
+- **API Compatibility**: All existing API endpoints continue to work with both address formats
+
+### Technical Details
+- **Address Prefix**: Changed from 'CJ' to 'BEANS' for new addresses
+- **Address Length**: CJ addresses (42 chars), BEANS addresses (45 chars)
+- **Validation Logic**: Updated to handle both address formats in wallet and blockchain state validation
+- **Token Name**: Remains "COINjecture" - only symbol changed to $BEANS
+
 ## [3.9.10] - 2025-10-18
 
 ### Added

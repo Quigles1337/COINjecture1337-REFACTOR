@@ -35,3 +35,4 @@ echo ""
 
 echo "📁 CLI packages location:"
 ls -la cli-packages/*.zip
+

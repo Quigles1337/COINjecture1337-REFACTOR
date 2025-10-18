@@ -246,7 +246,7 @@ class BlockchainState:
     
     def _is_valid_address(self, address: str) -> bool:
         """Check if address format is valid."""
-        return address.startswith('CJ') and len(address) == 42
+        return (address.startswith('CJ') or address.startswith('BEANS')) and len(address) in [42, 45]
     
     def get_pending_transactions(self, max_count: int = 100) -> List[Transaction]:
         """

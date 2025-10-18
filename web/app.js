@@ -3,18 +3,56 @@
  * Multi-page interface with terminal, API docs, and download
  */
 
+// Wait for @noble/ed25519 to load
+async function waitForNobleEd25519() {
+  let attempts = 0;
+  while (attempts < 50) {
+    if (window.nobleEd25519 || window.ed25519) {
+      return window.nobleEd25519 || window.ed25519;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  throw new Error('@noble/ed25519 library failed to load');
+}
+
 class WebInterface {
   constructor() {
-    this.apiBase = 'http://167.172.213.70:5000';
+    // Use relative URLs when served from the API server
+    this.apiBase = window.location.hostname === '167.172.213.70' ? '' : 'https://167.172.213.70';
     this.output = document.getElementById('terminal-output');
     this.input = document.getElementById('command-input');
     this.status = document.getElementById('network-status');
     this.history = [];
     this.historyIndex = -1;
+    
+    // Validate browser support for Ed25519
+    this.validateBrowserSupport();
+    
+    // Add certificate notice to the page
+    this.addCertificateNotice();
     this.isProcessing = false;
     this.wallet = null; // Store wallet for persistent mining
     
     this.init();
+  }
+  
+  validateBrowserSupport() {
+    // Check if Web Crypto API is available
+    if (!crypto.subtle) {
+      this.addOutput('❌ Web Crypto API not available. Please use HTTPS.');
+      throw new Error('Web Crypto API not available. Use HTTPS.');
+    }
+    
+    // Check if Ed25519 is supported
+    try {
+      crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+    } catch (e) {
+      this.addOutput('❌ Ed25519 not supported in this browser. Please use a modern browser.');
+      throw new Error('Ed25519 not supported in this browser');
+    }
+    
+    console.log('✅ Browser supports Ed25519 cryptography');
   }
   
   init() {
@@ -84,7 +122,7 @@ class WebInterface {
     resultDiv.className = 'test-result';
     
     try {
-      const response = await fetch(`${this.apiBase}/v1/data/block/latest`);
+      const response = await this.fetchWithFallback('/v1/data/block/latest');
       const data = await response.json();
       
       if (response.ok && data.status === 'success') {
@@ -330,7 +368,7 @@ class WebInterface {
   async handlePeers() {
     try {
       this.addOutput('🌐 Fetching peer list...');
-      const response = await fetch(`${this.apiBase}/v1/peers`);
+      const response = await this.fetchWithFallback('/v1/peers');
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -354,7 +392,7 @@ class WebInterface {
   async handleTelemetryStatus() {
     try {
       this.addOutput('📊 Checking telemetry status...');
-      const response = await fetch(`${this.apiBase}/v1/display/telemetry/latest`);
+      const response = await this.fetchWithFallback('/v1/display/telemetry/latest');
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -388,7 +426,7 @@ class WebInterface {
       
       // Get current blockchain state for real mining
       this.addOutput('📡 Fetching current blockchain state...');
-      const statusResponse = await fetch(`${this.apiBase}/v1/data/block/latest`);
+      const statusResponse = await this.fetchWithFallback('/v1/data/block/latest');
       
       if (!statusResponse.ok) {
         throw new Error(`Network error: ${statusResponse.status}`);
@@ -463,53 +501,65 @@ class WebInterface {
         cid: cid,
         miner_address: minerAddress,
         capacity: tier.toUpperCase(),
-        work_score: workScore,
-        ts: Date.now() / 1000 // Unix timestamp in seconds
+        work_score: Math.floor(workScore), // Make it an integer
+        ts: Math.floor(Date.now() / 1000) // Integer Unix timestamp
       };
       
-      // Create data to sign (same as blockData, without signature/public_key)
-      const dataToSign = { ...blockData };
+      // Python-compatible JSON dumps with sort_keys=True, separators=(',', ':')
+      function pythonJsonDumps(obj) {
+        const sortedKeys = Object.keys(obj).sort();
+        let result = '{';
+        sortedKeys.forEach((key, index) => {
+          if (index > 0) result += ',';
+          result += `"${key}":`;
+          const value = obj[key];
+          if (typeof value === 'string') {
+            result += `"${value}"`;
+          } else {
+            result += String(value);
+          }
+        });
+        result += '}';
+        return result;
+      }
       
-      // Create canonical JSON with sorted keys (matching backend json.dumps(block_data, sort_keys=True))
-      const sortedKeys = Object.keys(dataToSign).sort();
-      const sortedData = {};
-      sortedKeys.forEach(key => {
-        sortedData[key] = dataToSign[key];
-      });
-      const canonicalJson = JSON.stringify(sortedData);
+      const canonicalJson = pythonJsonDumps(blockData);
+      console.log('Canonical JSON:', canonicalJson);
+      
       const dataBuffer = new TextEncoder().encode(canonicalJson);
       
       
-      // Create signature using Ed25519
+      // Create signature using browser's native Ed25519
       const signatureBuffer = await crypto.subtle.sign(
         { name: "Ed25519" },
         keyPair.privateKey,
         dataBuffer
       );
-      const signature = Array.from(new Uint8Array(signatureBuffer))
+      const signatureHex = Array.from(new Uint8Array(signatureBuffer))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
       
       // DEBUG: Log the signature calculation
-      console.log('=== SIGNATURE CALCULATION DEBUG ===');
-      console.log('Public key length:', publicKey.length);
-      console.log('Data buffer length:', dataBuffer.length);
-      console.log('Generated signature:', signature);
-      console.log('Signature length:', signature.length);
+      console.log('=== SIGNATURE DEBUG ===');
+      console.log('Using browser native Ed25519 with Python-compatible JSON');
+      console.log('Data to sign:', canonicalJson);
+      console.log('Public key:', publicKey);
+      console.log('Generated signature:', signatureHex);
+      console.log('Signature length:', signatureHex.length);
       
       
       // Add signature and public_key to the block data
-      blockData.signature = signature;
+      blockData.signature = signatureHex;
       blockData.public_key = publicKey;
       
       // DEBUG: Log the signature details
       console.log('=== WEB INTERFACE DEBUG ===');
       console.log('Complete block data being sent:', blockData);
-      console.log('Signature being sent:', signature);
+      console.log('Signature being sent:', signatureHex);
       console.log('Public key being sent:', publicKey);
       console.log('Canonical JSON that was signed:', canonicalJson);
       
-      const submitResponse = await fetch(`${this.apiBase}/v1/ingest/block`, {
+      const submitResponse = await this.fetchWithFallback('/v1/ingest/block', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -637,107 +687,103 @@ class WebInterface {
     // Check if wallet exists in localStorage
     const storedWallet = localStorage.getItem('coinjecture_wallet');
     
-        if (storedWallet) {
-            try {
-                const walletData = JSON.parse(storedWallet);
-                
-                // DEBUG: Log wallet data
-                console.log('=== WALLET LOADING DEBUG ===');
-                console.log('Private key length:', walletData.privateKey ? walletData.privateKey.length : 'undefined');
-                console.log('Public key length:', walletData.publicKey ? walletData.publicKey.length : 'undefined');
-                
-                // Reimport Ed25519 key from stored hex using browser's crypto.subtle
-                const privateKeyBytes = new Uint8Array(
-                    walletData.privateKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-                );
-                const publicKeyBytes = new Uint8Array(
-                    walletData.publicKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-                );
-                
-                const privateKey = await crypto.subtle.importKey(
-                    "pkcs8",
-                    privateKeyBytes,
-                    { name: "Ed25519" },
-                    true,
-                    ["sign"]
-                );
-                
-                const publicKey = await crypto.subtle.importKey(
-                    "raw",
-                    publicKeyBytes,
-                    { name: "Ed25519" },
-                    true,
-                    ["verify"]
-                );
-                
-                // Create Ed25519 keypair from stored keys
-                const keyPair = {
-                    privateKey: privateKey,
-                    publicKey: publicKey
-                };
-        
-        const wallet = {
-          address: walletData.address,
-          publicKey: walletData.publicKey,
-          keyPair: keyPair,  // TweetNaCl keypair
-          created: walletData.created
-        };
-        
-        this.addOutput(`🔑 Loaded existing wallet: ${walletData.address}`);
-        return wallet;
-      } catch (error) {
-        console.log('Failed to load stored wallet:', error);
-        // Fall through to create new wallet
-      }
+    if (storedWallet) {
+      return await this.loadWallet(storedWallet);
     }
     
-    // Create new wallet using browser's native crypto.subtle API
-    this.addOutput('🔑 Creating new wallet...');
+    // Generate new Ed25519 keypair using browser's native crypto
+    this.addOutput('🔑 Creating new secure wallet...');
     
-    // Generate Ed25519 key pair using browser's crypto.subtle
     const keyPair = await crypto.subtle.generateKey(
       { name: "Ed25519" },
-      true,
+      true,  // extractable
       ["sign", "verify"]
     );
     
-    // Export the private key for storage
-    const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-    const privateKeyHex = Array.from(new Uint8Array(privateKeyBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    // Export keys for storage
+    const privateKeyPkcs8 = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+    const publicKeyRaw = await crypto.subtle.exportKey("raw", keyPair.publicKey);
     
-    // Export the public key as raw bytes (32 bytes for Ed25519)
-    const publicKeyBuffer = await crypto.subtle.exportKey("raw", keyPair.publicKey);
-    const publicKey = Array.from(new Uint8Array(publicKeyBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    // Convert to hex for storage
+    const privateKeyHex = Array.from(new Uint8Array(privateKeyPkcs8))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const publicKeyHex = Array.from(new Uint8Array(publicKeyRaw))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
     
-    // Create address from public key hash
-    const publicKeyBytes = new TextEncoder().encode(publicKey);
-    const addressBuffer = await crypto.subtle.digest('SHA-256', publicKeyBytes);
+    // Generate address from public key
+    const addressBuffer = await crypto.subtle.digest('SHA-256', publicKeyRaw);
     const address = 'web-' + Array.from(new Uint8Array(addressBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-      .substring(0, 16);
+      .map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
     
-    const wallet = {
+    // Store wallet
+    const walletData = {
       address: address,
-      publicKey: publicKey,
-      keyPair: keyPair,  // Store Ed25519 key pair
+      privateKey: privateKeyHex,
+      publicKey: publicKeyHex,
       created: Date.now()
     };
     
-    // Store wallet in localStorage with private key
-    localStorage.setItem('coinjecture_wallet', JSON.stringify({
-      address: wallet.address,
-      publicKey: wallet.publicKey,
-      privateKey: privateKeyHex,
-      created: wallet.created
-    }));
+    localStorage.setItem('coinjecture_wallet', JSON.stringify(walletData));
     
-    this.addOutput(`✅ New wallet created: ${address}`);
+    const wallet = {
+      address: address,
+      publicKey: publicKeyHex,
+      keyPair: keyPair,
+      created: walletData.created
+    };
+    
+    this.addOutput(`🔑 Created new wallet: ${address} ($BEANS)`);
     return wallet;
+  }
+  
+  async loadWallet(storedWallet) {
+    try {
+      const walletData = JSON.parse(storedWallet);
+      
+      // DEBUG: Log wallet data
+      console.log('=== WALLET LOADING DEBUG ===');
+      console.log('Private key length:', walletData.privateKey ? walletData.privateKey.length : 'undefined');
+      console.log('Public key length:', walletData.publicKey ? walletData.publicKey.length : 'undefined');
+      
+      // Convert hex back to bytes
+      const privateKeyBytes = new Uint8Array(
+        walletData.privateKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+      );
+      const publicKeyBytes = new Uint8Array(
+        walletData.publicKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+      );
+      
+      // Import keys back into crypto.subtle
+      const privateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        privateKeyBytes,
+        { name: "Ed25519" },
+        true,
+        ["sign"]
+      );
+      
+      const publicKey = await crypto.subtle.importKey(
+        "raw",
+        publicKeyBytes,
+        { name: "Ed25519" },
+        true,
+        ["verify"]
+      );
+      
+      const wallet = {
+        address: walletData.address,
+        publicKey: walletData.publicKey,
+        keyPair: { privateKey, publicKey },
+        created: walletData.created
+      };
+      
+      this.addOutput(`🔑 Loaded existing wallet: ${walletData.address} ($BEANS)`);
+      return wallet;
+    } catch (error) {
+      console.log('Failed to load stored wallet:', error);
+      // Fall through to create new wallet
+      return await this.createOrLoadWallet();
+    }
   }
   
   async checkWalletStatus() {
@@ -745,7 +791,7 @@ class WebInterface {
       const storedWallet = localStorage.getItem('coinjecture_wallet');
       if (storedWallet) {
         const walletData = JSON.parse(storedWallet);
-        this.addOutput(`🔑 Wallet loaded: ${walletData.address}`);
+        this.addOutput(`🔑 Wallet loaded: ${walletData.address} ($BEANS)`);
       } else {
         this.addOutput('💡 No wallet found. Use "wallet-generate" to create one.');
       }
@@ -814,7 +860,7 @@ class WebInterface {
         '⚠️  For security, use desktop CLI for serious mining operations.',
         '',
         '💡 Use "wallet-info" to view wallet details',
-        '💡 Use "mine --tier=mobile" to start earning tokens!'
+        '💡 Use "mine --tier=mobile" to start earning $BEANS tokens!'
       ]);
       
     } catch (error) {
@@ -837,7 +883,7 @@ class WebInterface {
       'This wallet is used for mining rewards and token transactions.',
       'Your private key is securely stored in your browser.',
       '',
-      '💡 Use "mine --tier=mobile" to start earning tokens!'
+      '💡 Use "mine --tier=mobile" to start earning $BEANS tokens!'
     ]);
   }
   
@@ -847,9 +893,118 @@ class WebInterface {
     this.addOutput('Terminal cleared.');
   }
   
+  // Add certificate notice to help users
+  addCertificateNotice() {
+    const notice = document.createElement('div');
+    notice.id = 'certificate-notice';
+    
+    // Detect mobile device for better styling
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    notice.style.cssText = `
+      position: fixed;
+      top: 10px;
+      ${isMobile ? 'left: 10px; right: 10px;' : 'right: 10px;'}
+      background: #ff6b6b;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: ${isMobile ? '14px' : '12px'};
+      max-width: ${isMobile ? '100%' : '300px'};
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    
+    if (isMobile) {
+      notice.innerHTML = `
+        <strong>🔒 SSL Certificate Required</strong><br><br>
+        <strong>📱 Mobile Steps:</strong><br>
+        1. Tap the link below<br>
+        2. Tap "Advanced" or "Details"<br>
+        3. Tap "Proceed to site"<br>
+        4. Return and refresh<br><br>
+        <a href="https://167.172.213.70" target="_blank" style="color: white; text-decoration: underline; font-weight: bold;">🔗 Accept Certificate</a>
+      `;
+    } else {
+      notice.innerHTML = `
+        <strong>🔒 SSL Certificate Required</strong><br>
+        Click <a href="https://167.172.213.70" target="_blank" style="color: white; text-decoration: underline;">here</a> to accept the certificate, then refresh this page.
+      `;
+    }
+    
+    document.body.appendChild(notice);
+  }
+
+  // Helper method to handle API calls with certificate handling
+  async fetchWithFallback(endpoint, options = {}) {
+    const url = this.apiBase + endpoint;
+    
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      // Check for certificate errors (network level)
+      if (error.name === 'TypeError' && 
+          (error.message.includes('Failed to fetch') || 
+           error.message.includes('ERR_CERT_AUTHORITY_INVALID') ||
+           error.message.includes('net::ERR_CERT_AUTHORITY_INVALID'))) {
+        
+        // Detect mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Show user-friendly message about certificate
+        this.addOutput('🔒 SSL Certificate Notice:');
+        this.addOutput('The server uses a self-signed certificate.');
+        
+        if (isMobile) {
+          this.addOutput('📱 Mobile Instructions:');
+          this.addOutput('1. Tap the link below to open the server');
+          this.addOutput('2. Tap "Advanced" or "Details"');
+          this.addOutput('3. Tap "Proceed to site" or "Continue"');
+          this.addOutput('4. Return here and refresh the page');
+          this.addOutput('');
+          this.addOutput('🔗 Direct link: https://167.172.213.70');
+        } else {
+          this.addOutput('Please visit https://167.172.213.70 in a new tab');
+          this.addOutput('and click "Advanced" → "Proceed to site" to accept the certificate.');
+          this.addOutput('Then refresh this page.');
+        }
+        
+        // Set status to show certificate issue
+        this.status.innerHTML = '🔒 Certificate Required';
+        this.status.className = 'status error';
+        
+        // Show the certificate notice
+        const notice = document.getElementById('certificate-notice');
+        if (notice) {
+          notice.style.display = 'block';
+        }
+        
+        throw new Error('Certificate not accepted. Please accept the certificate first.');
+      }
+      // Handle mobile-specific network errors
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile && error.message.includes('Failed to fetch')) {
+        this.addOutput('📱 Mobile Network Error:');
+        this.addOutput('Connection failed. This may be due to:');
+        this.addOutput('• Mobile data restrictions');
+        this.addOutput('• Corporate firewall');
+        this.addOutput('• Network security settings');
+        this.addOutput('');
+        this.addOutput('💡 Try switching between WiFi and mobile data');
+        this.addOutput('or use a different network connection.');
+      }
+      
+      console.log('API call failed:', error);
+      throw error;
+    }
+  }
+
   async updateNetworkStatus() {
     try {
-      const response = await fetch(`${this.apiBase}/v1/data/block/latest`);
+      const response = await this.fetchWithFallback('/v1/data/block/latest');
       const data = await response.json();
       
       if (data.status === 'success') {

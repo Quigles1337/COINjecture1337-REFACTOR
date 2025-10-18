@@ -78,8 +78,10 @@ class FaucetAPI:
             """Root endpoint with API information."""
             return jsonify({
                 "name": "COINjecture Faucet API",
-                "version": "3.6.7",
+                "version": "3.7.0",
                 "description": "One-way faucet API for streaming blockchain data",
+                "token_name": "COINjecture",
+                "token_symbol": "$BEANS",
                 "endpoints": {
                     "health": "/health",
                     "latest_block": "/v1/data/block/latest",
@@ -154,8 +156,31 @@ class FaucetAPI:
             try:
                 payload = request.get_json(force=True, silent=False) or {}
                 
+                # DEBUG: Log raw payload
+                import json
+                print(f"=== RAW PAYLOAD DEBUG ===")
+                print(f"Payload: {json.dumps(payload, indent=2)}")
+                print(f"Payload keys: {list(payload.keys())}")
+                print(f"Payload types: {[(k, type(v).__name__) for k, v in payload.items()]}")
+                
                 # Validate block event format
-                ev = BlockEvent.from_json(payload)
+                try:
+                    ev = BlockEvent.from_json(payload)
+                    print(f"✅ BlockEvent validation passed")
+                except ValueError as ve:
+                    print(f"❌ BlockEvent validation failed: {ve}")
+                    return jsonify({
+                        "status": "error",
+                        "error": "INVALID",
+                        "message": str(ve)
+                    }), 422
+                except Exception as e:
+                    print(f"❌ BlockEvent validation error: {type(e).__name__}: {e}")
+                    return jsonify({
+                        "status": "error",
+                        "error": "VALIDATION_ERROR",
+                        "message": str(e)
+                    }), 422
                 
                 # Verify wallet signature instead of HMAC
                 signature = payload.get('signature', '')
@@ -165,11 +190,23 @@ class FaucetAPI:
                     return jsonify({"status": "error", "error": "Missing signature or public_key"}), 400
                 
                 # Verify with existing Wallet class
+                # IMPORTANT: Verify the original data that was signed (without signature and public_key)
                 block_data_for_verification = {k: v for k, v in payload.items() 
                                                if k not in ['signature', 'public_key']}
                 
+                # TEMPORARY DEBUG: Log what we're verifying
+                import json
+                print(f"=== BACKEND DEBUG ===")
+                print(f"Received payload keys: {list(payload.keys())}")
+                print(f"Block data for verification: {json.dumps(block_data_for_verification, sort_keys=True)}")
+                print(f"Public key: {public_key}")
+                print(f"Signature: {signature}")
+                
                 from tokenomics.wallet import Wallet
-                if not Wallet.verify_block_signature(public_key, block_data_for_verification, signature):
+                verification_result = Wallet.verify_block_signature(public_key, block_data_for_verification, signature)
+                print(f"Signature verification result: {verification_result}")
+                
+                if not verification_result:
                     return jsonify({"status": "error", "error": "Invalid signature"}), 401
                 
                 # Store block event

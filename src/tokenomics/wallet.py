@@ -53,7 +53,7 @@ class Wallet:
         """
         Derive address from public key.
         
-        Address is SHA-256 hash of public key, prefixed with 'CJ' for COINjecture.
+        Address is SHA-256 hash of public key, prefixed with 'BEANS' for COINjecture.
         """
         # Serialize public key to bytes
         public_key_bytes = self.public_key.public_bytes(
@@ -66,10 +66,10 @@ class Wallet:
         
         # Take first 20 bytes and encode as hex
         address_bytes = address_hash[:20]
-        address_hex = address_hash.hex()
+        address_hex = address_bytes.hex()
         
-        # Prefix with 'CJ' for COINjecture
-        return f"CJ{address_hex}"
+        # Prefix with 'BEANS' for COINjecture
+        return f"BEANS{address_hex}"
     
     def sign_transaction(self, transaction_data: bytes) -> bytes:
         """
@@ -118,12 +118,60 @@ class Wallet:
         pub_bytes = bytes.fromhex(public_key_hex)
         sig_bytes = bytes.fromhex(signature_hex)
         
-        public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+        # Use multi-implementation verification (prioritizes PyNaCl for browser compatibility)
+        return Wallet._verify_tweetnacl_signature(public_key_hex, canonical, signature_hex)
+    
+    @staticmethod
+    def _verify_tweetnacl_signature(public_key_hex: str, data: bytes, signature_hex: str) -> bool:
+        """
+        Verify signature using multiple implementations as fallback.
+        
+        Args:
+            public_key_hex: Public key as hex string
+            data: Data that was signed
+            signature_hex: Signature as hex string
+            
+        Returns:
+            True if signature is valid
+        """
+        # Try 1: PyNaCl (most compatible with browser crypto.subtle)
         try:
-            public_key.verify(sig_bytes, canonical)
+            import nacl.signing
+            pub_bytes = bytes.fromhex(public_key_hex)
+            sig_bytes = bytes.fromhex(signature_hex)
+            verify_key = nacl.signing.VerifyKey(pub_bytes)
+            # PyNaCl expects signature + message concatenated format
+            signed_message = sig_bytes + data
+            verify_key.verify(signed_message)
+            print("✅ Signature verified with PyNaCl (browser-compatible)")
             return True
-        except:
-            return False
+        except Exception as e:
+            print(f"PyNaCl verification failed: {e}")
+        
+        # Try 2: cryptography library (standard Python Ed25519)
+        try:
+            from cryptography.hazmat.primitives.asymmetric import ed25519
+            pub_bytes = bytes.fromhex(public_key_hex)
+            sig_bytes = bytes.fromhex(signature_hex)
+            public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+            public_key.verify(sig_bytes, data)
+            print("✅ Signature verified with cryptography library")
+            return True
+        except Exception as e:
+            print(f"Cryptography library verification failed: {e}")
+        
+        # Try 3: Pure Python ed25519 library (fallback)
+        try:
+            import ed25519
+            pub_bytes = bytes.fromhex(public_key_hex)
+            sig_bytes = bytes.fromhex(signature_hex)
+            vk = ed25519.VerifyingKey(pub_bytes)
+            vk.verify(sig_bytes, data)
+            return True
+        except Exception as e:
+            pass
+        
+        return False
     
     def verify_signature(self, data: bytes, signature: bytes) -> bool:
         """
@@ -342,14 +390,19 @@ def is_valid_address(address: str) -> bool:
     Returns:
         True if address format is valid
     """
-    if not address.startswith('CJ'):
+    if not (address.startswith('CJ') or address.startswith('BEANS')):
         return False
     
-    if len(address) != 42:  # CJ + 40 hex chars
+    # CJ + 40 hex chars = 42, BEANS + 40 hex chars = 45
+    if len(address) not in [42, 45]:
         return False
     
     try:
-        int(address[2:], 16)
+        # Validate hex part after prefix
+        if address.startswith('CJ'):
+            int(address[2:], 16)
+        elif address.startswith('BEANS'):
+            int(address[5:], 16)
         return True
     except ValueError:
         return False
@@ -369,10 +422,11 @@ def address_from_public_key(public_key_bytes: bytes) -> str:
     address_hash = hashlib.sha256(public_key_bytes).digest()
     
     # Take first 20 bytes and encode as hex
-    address_hex = address_hash.hex()
+    address_bytes = address_hash[:20]
+    address_hex = address_bytes.hex()
     
-    # Prefix with 'CJ' for COINjecture
-    return f"CJ{address_hex}"
+    # Prefix with 'BEANS' for COINjecture
+    return f"BEANS{address_hex}"
 
 
 if __name__ == "__main__":

@@ -6,7 +6,8 @@
   <title>COINjecture</title>
   <link rel="stylesheet" href="./style.css">
   <link rel="icon" href="data:,">
-  <!-- Using browser's native crypto.subtle API for Ed25519 signatures -->
+  <!-- @noble/ed25519 library temporarily removed due to CDN issues -->
+  <!-- Will be re-added once a working CDN is found -->
 </head>
 <body>
   <!-- Navigation Bar -->
@@ -15,6 +16,7 @@
       <div class="nav-brand">
         <span class="brand-text">COINjecture</span>
         <span class="brand-subtitle">Utility-Based Computational Work Blockchain</span>
+        <span class="brand-ticker">$BEANS</span>
       </div>
       <div class="nav-links">
         <a href="#terminal" class="nav-link active" data-page="terminal">Terminal</a>
@@ -30,7 +32,7 @@
     <div id="page-terminal" class="page active">
       <div class="terminal-container">
         <div class="terminal-header">
-          <div class="terminal-title">🚀 COINjecture Web CLI</div>
+          <div class="terminal-title">🚀 COINjecture Web CLI ($BEANS)</div>
           <div class="status" id="network-status">🌐 Connecting...</div>
         </div>
     
@@ -122,7 +124,7 @@
         </div>
         <div class="api-section">
           <h2>Base URL</h2>
-          <code>http://167.172.213.70:5000</code>
+          <code>https://167.172.213.70</code>
         </div>
         <div class="api-section">
           <h2>Test API</h2>

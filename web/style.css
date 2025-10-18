@@ -54,6 +54,17 @@ body {
   margin-top: -2px;
 }
 
+.brand-ticker {
+  font-size: 14px;
+  color: #00ff88;
+  font-weight: bold;
+  margin-left: 10px;
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .nav-links {
   display: flex;
   gap: 24px;

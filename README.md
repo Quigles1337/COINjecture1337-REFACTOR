@@ -1,4 +1,4 @@
-# COINjecture: Utility-Based Computational Work Blockchain
+# COINjecture: Utility-Based Computational Work Blockchain ($BEANS)
 
 > Built on Satoshi's foundation. Evolved with complexity theory. Driven by real-world utility. Every pro
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-COINjecture is a utility-based blockchain that proves computational work through NP-Complete problem solving. Instead of arbitrary hashing, we solve verifiable computational problems with practical applications.
+COINjecture is a utility-based blockchain that proves computational work through NP-Complete problem solving. Instead of arbitrary hashing, we solve verifiable computational problems with practical applications. The native token is $BEANS.
 
 **[Read the Manifesto](MANIFESTO.md)** | **[Architecture Docs](ARCHITECTURE.README.md)** | **[API Reference](API.README.md)**
 

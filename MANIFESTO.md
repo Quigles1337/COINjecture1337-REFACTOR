@@ -1,8 +1,8 @@
-# COINjecture: Utility-Based Computational Work
+# COINjecture: Utility-Based Computational Work ($BEANS)
 
 Satoshi Nakamoto's Bitcoin whitepaper was brilliant in its core insights: proof-of-work for consensus, blocks storing transactions in an immutable ledger, and decentralized participation without trusted intermediaries. These foundational ideas remain sound.
 
-COINjecture builds on this foundation, evolving the concept: instead of arbitrary work (hashing), we prove that meaningful computational work was actually done, with practical utility built in.
+COINjecture builds on this foundation, evolving the concept: instead of arbitrary work (hashing), we prove that meaningful computational work was actually done, with practical utility built in. The native token is $BEANS.
 
 ## The Fundamental Shift
 

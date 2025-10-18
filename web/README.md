@@ -26,3 +26,4 @@ aws s3 sync ./web s3://<your-bucket-name>/ --delete --acl public-read
 ```
 
 CORS note: The console calls `http://167.172.213.70:5000/v1/data/block/latest`. Ensure that API includes `Access-Control-Allow-Origin: *` or place a proxy in front.
+
