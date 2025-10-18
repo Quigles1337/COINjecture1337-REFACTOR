@@ -27,9 +27,9 @@ class WebInterface {
       this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
       this.input.addEventListener('input', (e) => this.handleInput(e));
       
-      // Touch events for mobile
-      this.output.addEventListener('touchstart', (e) => this.handleTouchStart(e));
-      this.output.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+      // Touch events for mobile (passive listeners for better performance)
+      this.output.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+      this.output.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: true });
       
       // Show initial help
       this.addOutput('Type "help" for available commands or start with "get-block --latest"');
@@ -480,17 +480,34 @@ class WebInterface {
       const dataBuffer = new TextEncoder().encode(canonicalJson);
       
       
-      // Create Ed25519 signature that matches backend expectations
-      const signatureBuffer = await crypto.subtle.sign("Ed25519", keyPair.privateKey, dataBuffer);
+      // Create signature using Ed25519
+      const signatureBuffer = await crypto.subtle.sign(
+        { name: "Ed25519" },
+        keyPair.privateKey,
+        dataBuffer
+      );
       const signature = Array.from(new Uint8Array(signatureBuffer))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
+      
+      // DEBUG: Log the signature calculation
+      console.log('=== SIGNATURE CALCULATION DEBUG ===');
+      console.log('Public key length:', publicKey.length);
+      console.log('Data buffer length:', dataBuffer.length);
+      console.log('Generated signature:', signature);
+      console.log('Signature length:', signature.length);
       
       
       // Add signature and public_key to the block data
       blockData.signature = signature;
       blockData.public_key = publicKey;
       
+      // DEBUG: Log the signature details
+      console.log('=== WEB INTERFACE DEBUG ===');
+      console.log('Complete block data being sent:', blockData);
+      console.log('Signature being sent:', signature);
+      console.log('Public key being sent:', publicKey);
+      console.log('Canonical JSON that was signed:', canonicalJson);
       
       const submitResponse = await fetch(`${this.apiBase}/v1/ingest/block`, {
         method: 'POST',
@@ -620,29 +637,49 @@ class WebInterface {
     // Check if wallet exists in localStorage
     const storedWallet = localStorage.getItem('coinjecture_wallet');
     
-    if (storedWallet) {
-      try {
-        const walletData = JSON.parse(storedWallet);
-        
-        // Reimport private key from stored hex
-        const privateKeyBytes = new Uint8Array(
-          walletData.privateKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-        );
-        const privateKey = await crypto.subtle.importKey(
-          "pkcs8",
-          privateKeyBytes,
-          { name: "Ed25519", namedCurve: "Ed25519" },
-          true,
-          ["sign"]
-        );
-        
-        // Load public key directly from stored wallet data
-        const publicKey = walletData.publicKey;
+        if (storedWallet) {
+            try {
+                const walletData = JSON.parse(storedWallet);
+                
+                // DEBUG: Log wallet data
+                console.log('=== WALLET LOADING DEBUG ===');
+                console.log('Private key length:', walletData.privateKey ? walletData.privateKey.length : 'undefined');
+                console.log('Public key length:', walletData.publicKey ? walletData.publicKey.length : 'undefined');
+                
+                // Reimport Ed25519 key from stored hex using browser's crypto.subtle
+                const privateKeyBytes = new Uint8Array(
+                    walletData.privateKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+                );
+                const publicKeyBytes = new Uint8Array(
+                    walletData.publicKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+                );
+                
+                const privateKey = await crypto.subtle.importKey(
+                    "pkcs8",
+                    privateKeyBytes,
+                    { name: "Ed25519" },
+                    true,
+                    ["sign"]
+                );
+                
+                const publicKey = await crypto.subtle.importKey(
+                    "raw",
+                    publicKeyBytes,
+                    { name: "Ed25519" },
+                    true,
+                    ["verify"]
+                );
+                
+                // Create Ed25519 keypair from stored keys
+                const keyPair = {
+                    privateKey: privateKey,
+                    publicKey: publicKey
+                };
         
         const wallet = {
           address: walletData.address,
-          publicKey: publicKey,
-          keyPair: { privateKey: privateKey },
+          publicKey: walletData.publicKey,
+          keyPair: keyPair,  // TweetNaCl keypair
           created: walletData.created
         };
         
@@ -654,32 +691,31 @@ class WebInterface {
       }
     }
     
-    // Create new wallet
+    // Create new wallet using browser's native crypto.subtle API
     this.addOutput('🔑 Creating new wallet...');
     
+    // Generate Ed25519 key pair using browser's crypto.subtle
     const keyPair = await crypto.subtle.generateKey(
-      {
-        name: "Ed25519",
-        namedCurve: "Ed25519"
-      },
+      { name: "Ed25519" },
       true,
       ["sign", "verify"]
     );
     
-    // Export private key for storage
+    // Export the private key for storage
     const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
     const privateKeyHex = Array.from(new Uint8Array(privateKeyBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
-    // Export public key
+    // Export the public key as raw bytes (32 bytes for Ed25519)
     const publicKeyBuffer = await crypto.subtle.exportKey("raw", keyPair.publicKey);
     const publicKey = Array.from(new Uint8Array(publicKeyBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
     // Create address from public key hash
-    const addressBuffer = await crypto.subtle.digest('SHA-256', publicKeyBuffer);
+    const publicKeyBytes = new TextEncoder().encode(publicKey);
+    const addressBuffer = await crypto.subtle.digest('SHA-256', publicKeyBytes);
     const address = 'web-' + Array.from(new Uint8Array(addressBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
@@ -688,7 +724,7 @@ class WebInterface {
     const wallet = {
       address: address,
       publicKey: publicKey,
-      keyPair: keyPair,
+      keyPair: keyPair,  // Store Ed25519 key pair
       created: Date.now()
     };
     
@@ -834,18 +870,37 @@ class WebInterface {
 // Download CLI function (global for onclick)
 function downloadCLI(platform) {
   if (platform === 'macos') {
-    // In a real implementation, this would download the actual file
-    // For now, we'll show a message
-    alert('Download would start here. In production, this would download COINjecture-macOS-v3.9.7-Final.zip');
-    
-    // Simulate download (replace with actual download logic)
+    // Create download link to GitHub releases
     const link = document.createElement('a');
-    link.href = '#'; // Replace with actual file URL
-    link.download = 'COINjecture-macOS-v3.9.7-Final.zip';
+    link.href = 'https://github.com/beanapologist/COINjecture/releases/download/v3.9.10/COINjecture-macOS-v3.6.6-Final.zip';
+    link.download = 'COINjecture-macOS-v3.6.6-Final.zip';
+    link.target = '_blank';
     link.style.display = 'none';
     document.body.appendChild(link);
-    // link.click(); // Uncomment when actual file is available
+    link.click();
     document.body.removeChild(link);
+    
+    // Show download feedback
+    const downloadCard = document.querySelector('.download-card');
+    if (downloadCard) {
+      const message = document.createElement('div');
+      message.innerHTML = '🚀 <strong>Download started!</strong><br>Check your Downloads folder for COINjecture-macOS-v3.6.6-Final.zip';
+      message.style.color = '#9d7ce8';
+      message.style.marginTop = '16px';
+      message.style.fontWeight = 'bold';
+      message.style.padding = '12px';
+      message.style.background = '#1a1a1a';
+      message.style.border = '1px solid #9d7ce8';
+      message.style.borderRadius = '6px';
+      downloadCard.appendChild(message);
+      
+      // Remove message after 8 seconds
+      setTimeout(() => {
+        if (message.parentNode) {
+          message.parentNode.removeChild(message);
+        }
+      }, 8000);
+    }
   }
 }
 

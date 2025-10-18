@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Community Bounty System**: Introduced 100 COIN token bounty for wallet loading compatibility fix
 - **Soft Purple Theme**: Updated web interface from green to elegant soft purple color scheme
 - **Enhanced Error Logging**: Added detailed validation error logging for debugging
+- **GitHub Release Preparation**: Created release preparation script and updated download URLs
+- **CLI Package Distribution**: Prepared CLI packages for GitHub release distribution
 
 ### Fixed
 - **Web Wallet Ed25519 Key Generation**: Fixed Ed25519 key generation and signature verification
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated signature generation to use Ed25519 instead of HMAC-SHA256
   - Resolved 422 "An Ed25519 public key is 32 bytes long" validation error
   - Fixed undefined `keyMaterial` variable in wallet creation
+- **CLI Download Links**: Fixed download functionality to use GitHub releases
+  - Updated download URLs from raw GitHub links to proper release downloads
+  - Fixed 404 errors when users attempted to download CLI packages
+  - Prepared CLI packages for GitHub release distribution
 
 ### Changed
 - **UI Theme**: Updated all green colors (#00ff00) to soft purple (#9d7ce8)
