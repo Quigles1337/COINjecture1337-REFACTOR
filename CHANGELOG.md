@@ -5,6 +5,49 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.18] - 2025-01-27
+
+### 🎯 MAJOR MILESTONE: Blockchain State Refresh & Frontend S3 Update
+- **Blockchain State Successfully Refreshed**: Updated from #16 blocks to #164 blocks (167 total blocks)
+  - Collected all mined blocks from multiple sources (logs, cache, database)
+  - Extracted 1,080 block entries from mining logs and deduplicated to 167 unique blocks
+  - Latest block: #164 with work score 1,740.0 and hash `mined_block_164_1760804429`
+- **Frontend S3 Now Shows Correct Block Count**: Fixed frontend to display #164 blocks instead of #16
+  - Updated web interface with latest blockchain statistics
+  - Enhanced `web/app.js` with blockchain statistics display
+  - Added `blockchain-stats` command to show total blocks
+  - API server now serves updated blockchain state
+
+### 🔧 Technical Implementation
+- **Blockchain State Refresh Script**: Created comprehensive blockchain state refresh system
+  - `scripts/refresh_blockchain_state.py` - Collects all mined blocks from all sources
+  - `scripts/sync_frontend_with_latest_blocks.py` - Syncs frontend with latest blockchain data
+  - `scripts/update_api_server_blockchain.py` - Updates API server with latest blockchain state
+- **API Server Integration**: Fixed API server to serve updated blockchain state
+  - Copied blockchain state to correct location: `/home/coinjecture/COINjecture/data/`
+  - Restarted faucet server to pick up new blockchain state
+  - Both HTTP (port 5000) and HTTPS (nginx) endpoints now working
+- **Frontend Interface Enhancements**: Updated web interface with blockchain statistics
+  - Enhanced help text to show current block count
+  - Added blockchain statistics display functionality
+  - Updated terminal interface with latest blockchain data
+
+### 🌐 Network Architecture
+- **nginx Required for HTTPS**: Confirmed nginx is needed for HTTPS termination and security
+  - nginx handles SSL/TLS termination on port 443
+  - Forwards requests to faucet_server.py on port 5000
+  - Provides security headers and CORS support
+- **API Server Architecture**: 
+  - Frontend S3 → nginx (HTTPS:443) → faucet_server.py (HTTP:5000) → blockchain_state.json
+  - Both HTTP and HTTPS endpoints working correctly
+  - API server now serves #164 blocks instead of #16
+
+### 📊 Results Achieved
+- **Blockchain State**: Successfully refreshed from #16 to #164 blocks
+- **Frontend S3**: Now displays correct block count (#164) instead of old count (#16)
+- **API Endpoints**: All endpoints now return updated blockchain data
+- **Network Status**: Both HTTP and HTTPS endpoints working with latest blockchain state
+
 ## [3.9.17] - 2025-01-27
 
 ### Full P2P Gossip Networking Implementation
