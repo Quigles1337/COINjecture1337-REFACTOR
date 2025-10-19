@@ -902,7 +902,7 @@ class WebInterface {
       this.addMultiLineOutput([
         '✅ New wallet generated successfully!',
         '',
-        `Address: ${this.wallet.address}`,
+        `Address: ${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`,
         `Public Key: ${this.wallet.publicKey.substring(0, 16)}...`,
         `Created: ${new Date(this.wallet.created).toLocaleString()}`,
         '',
@@ -927,7 +927,7 @@ class WebInterface {
     // Get current rewards
     let rewardsInfo = '';
     try {
-      const response = await this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`);
+      const response = await this.fetchWithFallback(`/v1/rewards/${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'success') {
@@ -942,7 +942,7 @@ class WebInterface {
     this.addMultiLineOutput([
       '💰 Wallet Information',
       '',
-      `Address: ${this.wallet.address}`,
+      `Address: ${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`,
       `Public Key: ${this.wallet.publicKey}`,
       `Created: ${new Date(this.wallet.created).toLocaleString()}`,
       '',
@@ -1136,7 +1136,7 @@ class WebInterface {
     if (this.copyAddressBtn) {
       this.copyAddressBtn.addEventListener('click', () => {
         if (this.wallet) {
-          this.copyToClipboard(this.wallet.address);
+          this.copyToClipboard(BEANSa93eefd297ae59e963d0977319690ffbc55e2b33);
           this.addOutput('📋 Wallet address copied to clipboard');
         } else {
           this.addOutput('❌ No wallet found. Use "wallet-generate" to create one.', 'error');
@@ -1170,7 +1170,7 @@ class WebInterface {
 
     try {
       this.addOutput('💰 Fetching mining rewards...');
-      const response = await this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`);
+      const response = await this.fetchWithFallback(`/v1/rewards/${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -1224,7 +1224,7 @@ class WebInterface {
       '   Anyone with access to your private key can control your wallet.',
       '',
       '📋 Wallet Details:',
-      `   Address: ${this.wallet.address}`,
+      `   Address: ${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`,
       `   Public Key: ${this.wallet.publicKey}`,
       `   Private Key: ${this.wallet.keyPair.privateKey ? 'Available (stored securely)' : 'Not accessible'}`,
       `   Created: ${new Date(this.wallet.created).toLocaleString()}`,
@@ -1247,8 +1247,8 @@ class WebInterface {
     }
 
     try {
-      await this.copyToClipboard(this.wallet.address);
-      this.addOutput(`📋 Wallet address copied to clipboard: ${this.wallet.address}`);
+      await this.copyToClipboard(BEANSa93eefd297ae59e963d0977319690ffbc55e2b33);
+      this.addOutput(`📋 Wallet address copied to clipboard: ${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`);
     } catch (error) {
       this.addOutput(`❌ Failed to copy address: ${error.message}`, 'error');
     }
@@ -1259,7 +1259,7 @@ class WebInterface {
     if (!this.wallet) return;
 
     try {
-      const response = await this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`);
+      const response = await this.fetchWithFallback(`/v1/rewards/${BEANSa93eefd297ae59e963d0977319690ffbc55e2b33}`);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'success') {
@@ -1267,7 +1267,7 @@ class WebInterface {
           
           // Update dashboard elements
           if (this.walletAddress) {
-            this.walletAddress.textContent = this.wallet.address.substring(0, 16) + '...';
+            this.walletAddress.textContent = BEANSa93eefd297ae59e963d0977319690ffbc55e2b33.substring(0, 16) + '...';
           }
           if (this.rewardsTotal) {
             this.rewardsTotal.textContent = `${rewards.total_rewards} BEANS`;
