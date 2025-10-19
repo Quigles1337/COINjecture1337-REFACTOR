@@ -5,6 +5,27 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.36] - 2025-10-19
+
+### 🔧 CLI Stale Data Fix
+- **Fixed CLI Stale Data**: CLI now shows live blockchain statistics instead of cached data
+- **Updated displayBlockchainStats()**: Now fetches both latest block and total blocks from live API
+- **Added Cache-Busting**: Prevents stale data by adding timestamp parameters to API calls
+- **Cleared Local Cache**: Removed local cache files containing outdated data (167 blocks vs 5280 blocks)
+- **Removed Hardcoded Values**: Cleaned up help text that showed hardcoded block counts
+
+### 🐛 Bug Fixes
+- **Fixed CLI Data Source**: CLI now uses live API data instead of local cache files
+- **Fixed Help Text**: Removed hardcoded "Total: 333 blocks" and "Total: 167 blocks" from help
+- **Fixed Cache Issues**: Cleared stale blockchain_state.json and cache files
+- **Fixed Data Consistency**: CLI now matches live network data (5280 blocks, latest #5277)
+
+### 🚀 Performance & Reliability
+- **Live Data Fetching**: CLI always fetches fresh data from API endpoints
+- **Cache-Busting**: Prevents browser and server caching of stale data
+- **Consistent Statistics**: All interfaces now show synchronized blockchain data
+- **Improved User Experience**: No more confusion from inconsistent block counts
+
 ## [3.9.35] - 2025-10-19
 
 ### 🔧 Data Source Consolidation & CORS Fix

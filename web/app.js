@@ -1007,7 +1007,9 @@ class WebInterface {
 
   // Helper method to handle API calls with certificate handling
   async fetchWithFallback(endpoint, options = {}) {
-    const url = this.apiBase + endpoint;
+    // Add cache-busting parameter to ensure fresh data
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = this.apiBase + endpoint + separator + 't=' + Date.now();
     
     try {
       const response = await fetch(url, options);
@@ -1309,20 +1311,30 @@ class WebInterface {
   async displayBlockchainStats() {
     try {
       this.addOutput('📊 Fetching blockchain statistics...');
-      const response = await this.fetchWithFallback('/v1/data/block/latest');
-      const data = await response.json();
       
-      if (data.status === 'success') {
-        const block = data.data;
+      // Fetch both latest block and total blocks from API
+      const [latestResponse, totalResponse] = await Promise.all([
+        this.fetchWithFallback('/v1/data/block/latest'),
+        this.fetchWithFallback('/v1/data/blocks/all')
+      ]);
+      
+      const latestData = await latestResponse.json();
+      const totalData = await totalResponse.json();
+      
+      if (latestData.status === 'success' && totalData.status === 'success') {
+        const block = latestData.data;
+        const totalBlocks = totalData.meta.total_blocks;
+        
         this.addMultiLineOutput([
           '📊 Blockchain Statistics:',
+          `   Total Blocks: ${totalBlocks}`,
           `   Latest Block: #${block.index}`,
           `   Latest Hash: ${block.block_hash.substring(0, 20)}...`,
           `   Work Score: ${block.cumulative_work_score.toFixed(2)}`,
           `   Last Updated: ${new Date(block.timestamp * 1000).toLocaleString()}`
         ]);
       } else {
-        this.addOutput(`❌ ${data.message || 'Failed to fetch stats'}`, 'error');
+        this.addOutput(`❌ ${latestData.message || totalData.message || 'Failed to fetch stats'}`, 'error');
       }
     } catch (error) {
       this.addOutput(`❌ Network error: ${error.message}`, 'error');
