@@ -4,7 +4,7 @@ COINjecture Setup Script
 Automatically installs all dependencies and sets up the environment
 """
 
-__version__ = "3.9.19"
+__version__ = "3.9.20"
 
 import os
 import sys
