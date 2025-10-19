@@ -114,6 +114,19 @@ class Wallet:
         import json
         from cryptography.hazmat.primitives.asymmetric import ed25519
         
+        # Validate hex strings before processing
+        if not public_key_hex or not signature_hex:
+            return False
+            
+        # Check if strings are valid hexadecimal
+        try:
+            # Test if strings are valid hex
+            bytes.fromhex(public_key_hex)
+            bytes.fromhex(signature_hex)
+        except ValueError:
+            # Not valid hex strings - this is likely a test or invalid submission
+            return False
+        
         canonical = json.dumps(block_data, sort_keys=True).encode()
         pub_bytes = bytes.fromhex(public_key_hex)
         sig_bytes = bytes.fromhex(signature_hex)
