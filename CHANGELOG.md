@@ -5,6 +5,27 @@ All notable changes to COINjecture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.19] - 2025-10-19
+
+### 🔧 Network & Consensus Fixes
+- **P2P Discovery Enhancement**: Improved peer discovery with Critical Complex Equilibrium Conjecture
+- **Consensus Service Restart**: Fixed network stalling at block #164, now progressing to block #165
+- **Gossip Protocol Optimization**: Enhanced λ-coupling and η-damping for better network equilibrium
+- **Backend Power Cycle**: Complete service restart to ensure all components are synchronized
+- **Frontend Redeploy**: Updated web interface with latest blockchain state and wallet features
+
+### 🐛 Bug Fixes
+- Fixed consensus service reading outdated blockchain state
+- Resolved network stalling issues through proper service restart
+- Updated API server with latest blockchain data
+- Enhanced P2P discovery service with proper bootstrap node configuration
+
+### 📊 Network Status
+- **Current Block**: #165 (previously stuck at #164)
+- **Network Health**: Active and processing new blocks
+- **P2P Discovery**: Enhanced with multiple bootstrap nodes
+- **Consensus Service**: Running with λ-η equilibrium at 1/√2
+
 ## [4.0.0] - PLANNED RELEASE
 
 ### 🌟 THE TIME CRYSTAL REVOLUTION: COINjecture v4.0
