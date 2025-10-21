@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.9.62] - 2025-10-21
+
+### Fixed
+- **FIXED**: Block ingest 422 error - added missing previous_hash column to database schema
+- **RESOLVED**: Database schema mismatch in block_events table causing 422 errors
+- **FIXED**: insert_block_event() method now works correctly with proper table schema
+
+### Technical Details
+- Added previous_hash TEXT column to block_events table schema in ingest_store.py
+- Updated latest_blocks() method to include previous_hash in SELECT query for consistency
+- Aligned table schema with existing INSERT statement expectations
+- Mining functionality now works correctly when submitting block data to /v1/ingest/block endpoint
+
 ## [3.9.61] - 2025-10-21
 
 ### Fixed
