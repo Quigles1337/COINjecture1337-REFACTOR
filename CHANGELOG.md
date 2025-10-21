@@ -1,5 +1,53 @@
 # Changelog
 
+## [3.9.60] - 2025-10-21
+
+### Fixed
+- **CRITICAL**: Fixed tokenomics system to be based on actual work completed (not arbitrary values)
+- Successfully distributed 751,854.77 COIN to 14 miners based on work completed from 10,561 blocks
+- Updated API to read from work_based_rewards table with proper reward calculation
+- Fixed mining 422 errors by correcting BlockEvent schema validation
+- Implemented work-based reward distribution system
+
+### Added
+- Work-based rewards table with comprehensive miner data
+- API integration with work_based_rewards table for accurate reward display
+- Aggressive cache-busting for frontend deployment (v=3.9.60)
+- No-cache headers to prevent browser caching issues
+
+### Known Issues
+- **CloudFront Cache Issue**: Persistent caching problem where CloudFront serves old app.js (v=3.9.41) despite S3 having correct version (v=3.9.60)
+- **Workaround**: Users can access site directly via S3 website URL: http://coinjecture.com.s3-website-us-east-1.amazonaws.com/
+- **Resolution**: CloudFront invalidation in progress, should resolve within 2-3 minutes
+
+### Technical Details
+- Tokenomics now properly calculates rewards based on cumulative_work_score and actual computational effort
+- Reward formula: base_reward (50 COIN) + work_bonus (work_score * 0.1) + cumulative_bonus (cumulative_work_score * 0.001)
+- Database contains distributed rewards for all miners based on their actual work completed
+
+## [3.9.58] - 2025-10-21
+
+### Fixed
+- Comprehensive blockchain bug fixes and reward recalculation
+- Fixed consensus service complexity field from string to empty dict
+- Fixed capacity normalization logic to handle lowercase desktop/server/mobile values
+- Consolidated databases to single authoritative source
+- Fixed database permission errors (readonly issues resolved)
+- Added dynamic tokenomics integration to consensus service
+- Implemented comprehensive reward reprocessing from genesis
+- Fixed missing _distribute_mining_rewards method in consensus service
+
+### Added
+- Dynamic tokenomics model integration with logarithmic scaling
+- Comprehensive reward recalculation system
+- Database consolidation and permission fixes
+- P2P network block capture capabilities
+
+### Changed
+- Consensus service now uses sophisticated tokenomics instead of simple fixed rewards
+- All services use coinjecture:coinjecture ownership
+- Reward calculation now uses deflation factors and diversity bonuses
+
 All notable changes to COINjecture will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -50,6 +98,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Frontend Update**: Deployed fixed app.js to S3 with proper mining data structure
 - **API Validation**: Mining requests now pass API validation (no more 422 errors)
 - **Complete Payload**: All 13 required fields now included in mining requests
+
+## [3.9.56] - 2025-10-20
+
+### 🔧 Mining 422 Error Final Fix
+- **Schema Validation**: Fixed BlockEvent schema validation by removing extra fields
+- **Required Fields Only**: Mining payload now sends only 9 required fields (not 13)
+- **API Compatibility**: Removed previous_hash, merkle_root, timestamp fields that caused validation errors
+- **BlockEvent Validation**: Mining requests now pass BlockEvent.from_json() validation successfully
+- **Cache-Busting Update**: Updated cache-busting parameter to force browser to load corrected version
+- **S3 Deployment**: Deployed corrected frontend with proper field structure
+- **Rate Limit Handling**: API now returns rate limit errors instead of 422 (validation success)
 
 ## [3.9.53] - 2025-10-20
 

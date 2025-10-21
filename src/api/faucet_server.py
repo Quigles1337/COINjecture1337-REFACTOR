@@ -71,6 +71,10 @@ class FaucetAPI:
         # Register user management routes
         self.app.register_blueprint(user_bp)
         
+        # Register problem submission blueprint
+        from api.problem_endpoints import problem_bp
+        self.app.register_blueprint(problem_bp)
+        
         # Register routes
         self._register_routes()
     
@@ -746,10 +750,42 @@ class FaucetAPI:
         @self.app.route('/v1/rewards/<address>', methods=['GET'])
         @self.limiter.limit("100 per minute")
         def get_mining_rewards(address: str):
-            """Get mining rewards earned by a specific address."""
+            """Get mining rewards earned by a specific address based on work completed."""
             try:
-                # Get block events for this miner
-                block_events = self.ingest_store.latest_blocks(limit=1000)
+                # First try to get from work_based_rewards table (new system)
+                try:
+                    import sqlite3
+                    db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                        SELECT total_rewards, blocks_mined, total_work_score, average_reward 
+                        FROM work_based_rewards 
+                        WHERE miner_address = ?
+                    ''', (address,))
+                    
+                    result = cursor.fetchone()
+                    conn.close()
+                    
+                    if result:
+                        total_rewards, blocks_mined, total_work_score, average_reward = result
+                        return jsonify({
+                            "status": "success",
+                            "data": {
+                                "miner_address": address,
+                                "total_rewards": total_rewards,
+                                "blocks_mined": blocks_mined,
+                                "rewards_breakdown": [{"block": i+1, "reward": average_reward} for i in range(blocks_mined)],
+                                "total_work_score": total_work_score,
+                                "average_work_score": total_work_score / blocks_mined if blocks_mined > 0 else 0
+                            }
+                        }), 200
+                except Exception as e:
+                    print(f"Work-based rewards lookup failed: {e}")
+                
+                # Fallback to old system if work_based_rewards not found
+                block_events = self.cache_manager.get_all_blocks()
                 miner_events = [event for event in block_events if event.get('miner_address') == address]
                 
                 if not miner_events:
@@ -764,15 +800,17 @@ class FaucetAPI:
                         }
                     }), 200
                 
-                # Calculate rewards (50 COIN per block + work score bonus)
+                # Calculate rewards based on work completed
                 rewards_breakdown = []
                 total_rewards = 0.0
                 total_work_score = 0.0
                 
                 for event in miner_events:
                     work_score = event.get('work_score', 0.0)
+                    cumulative_work = event.get('cumulative_work_score', 0.0)
                     base_reward = 50.0  # Base mining reward
                     work_bonus = work_score * 0.1  # 0.1 COIN per work score point
+                    cumulative_bonus = cumulative_work * 0.001  # Bonus for cumulative work
                     block_reward = base_reward + work_bonus
                     
                     rewards_breakdown.append({
@@ -813,8 +851,8 @@ class FaucetAPI:
         def get_mining_leaderboard():
             """Get mining leaderboard showing top miners by rewards."""
             try:
-                # Get all block events
-                block_events = self.ingest_store.latest_blocks(limit=10000)
+                # Get all block events from blockchain state
+                block_events = self.cache_manager.get_all_blocks()
                 
                 # Group by miner address
                 miner_stats = {}

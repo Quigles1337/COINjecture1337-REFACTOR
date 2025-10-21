@@ -1825,10 +1825,11 @@ class WebInterface {
   async updateNetworkStatus() {
     if (this.status) {
       try {
-        // Get blockchain stats
-        const [latestResponse, rewardsResponse] = await Promise.all([
+        // Get blockchain stats, rewards, and consensus status
+        const [latestResponse, rewardsResponse, consensusResponse] = await Promise.all([
           this.fetchWithFallback('/v1/data/block/latest'),
-          this.wallet ? this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`) : Promise.resolve({ok: false})
+          this.wallet ? this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`) : Promise.resolve({ok: false}),
+          this.fetchWithFallback('/v1/consensus/status').catch(() => ({ok: false})) // Optional consensus status
         ]);
 
         let statusText = '🌐 Connected';
@@ -1850,6 +1851,21 @@ class WebInterface {
             const blocks = rewardsData.data.blocks_mined || 0;
             statusText += ` | 💰 ${rewards.toFixed(2)} BEANS (${blocks} blocks)`;
           }
+        }
+        
+        // Add consensus engine status
+        if (consensusResponse.ok) {
+          const consensusData = await consensusResponse.json();
+          if (consensusData.status === 'success') {
+            const consensus = consensusData.data;
+            const processed = consensus.processed_blocks || 0;
+            const total = consensus.total_blocks || 0;
+            const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
+            statusText += ` | ⚙️ Consensus: ${processed}/${total} (${progress}%)`;
+          }
+        } else {
+          // Fallback: show consensus is processing
+          statusText += ` | ⚙️ Consensus: Processing...`;
         }
         
         this.status.textContent = statusText;
