@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.9.61] - 2025-10-21
+
+### Fixed
+- **FIXED**: CloudFront cache invalidation now automatic in deployment scripts
+- **FIXED**: Deployment scripts now automatically invalidate CloudFront cache after S3 sync
+- **RESOLVED**: Persistent CloudFront caching issue where users saw old app.js (v=3.9.41) despite S3 having correct version (v=3.9.60)
+
+### Added
+- Automatic CloudFront cache invalidation in deployment scripts
+- CloudFront distribution ID configuration in deployment scripts
+- Enhanced deployment feedback with website URLs
+
+### Technical Details
+- Updated `deploy-s3.sh` and `deploy-s3-simple.sh` to include `aws cloudfront create-invalidation`
+- CloudFront distribution ID: E2INLKPSADEUYX
+- All deployments now automatically ensure CloudFront serves latest version
+- No more manual cache invalidation required
+
 ## [3.9.60] - 2025-10-21
 
 ### Fixed
@@ -8,17 +26,16 @@
 - Updated API to read from work_based_rewards table with proper reward calculation
 - Fixed mining 422 errors by correcting BlockEvent schema validation
 - Implemented work-based reward distribution system
+- **FIXED**: CloudFront cache invalidation now automatic in deployment scripts
+- **FIXED**: Deployment scripts now automatically invalidate CloudFront cache after S3 sync
 
 ### Added
 - Work-based rewards table with comprehensive miner data
 - API integration with work_based_rewards table for accurate reward display
 - Aggressive cache-busting for frontend deployment (v=3.9.60)
 - No-cache headers to prevent browser caching issues
-
-### Known Issues
-- **CloudFront Cache Issue**: Persistent caching problem where CloudFront serves old app.js (v=3.9.41) despite S3 having correct version (v=3.9.60)
-- **Workaround**: Users can access site directly via S3 website URL: http://coinjecture.com.s3-website-us-east-1.amazonaws.com/
-- **Resolution**: CloudFront invalidation in progress, should resolve within 2-3 minutes
+- Automatic CloudFront cache invalidation in deployment scripts
+- CloudFront distribution ID configuration in deployment scripts
 
 ### Technical Details
 - Tokenomics now properly calculates rewards based on cumulative_work_score and actual computational effort
