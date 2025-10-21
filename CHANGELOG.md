@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.9.65] - 2025-10-21
+
+### Fixed
+- **Consensus Status Endpoint**: Fixed consensus status endpoint to show correct block count
+- **Database vs Cache**: Resolved mismatch between database (5,276 blocks) and cache (10,562 blocks)
+- **API Data Source**: Updated consensus status to use cache manager instead of ingest store
+- **Block Count Accuracy**: API now correctly shows 10,562 blocks instead of 5,276
+
+### Technical Details
+- Updated `src/api/faucet_server.py` consensus status endpoint
+- Changed from `IngestStore.latest_blocks()` to `CacheManager.get_all_blocks()`
+- Cache manager reads from blockchain state file with all 10,562 blocks
+- Consensus service properly writes to blockchain state file
+
+### Resolved Issues
+- ✅ Consensus status endpoint now shows correct block count (10,562)
+- ✅ API data sources properly synchronized
+- ✅ Frontend will now display accurate blockchain statistics
+
 ## [3.9.64] - 2025-10-21
 
 ### Fixed

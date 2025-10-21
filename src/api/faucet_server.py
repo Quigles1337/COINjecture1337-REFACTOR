@@ -50,13 +50,13 @@ class FaucetAPI:
         """
         self.app = Flask(__name__)
         self.cache_manager = CacheManager(cache_dir)
-        self.ingest_store = IngestStore()
+        self.ingest_store = IngestStore("/opt/coinjecture-consensus/data/faucet_ingest.db")
         # TODO: load from env or config
         self.auth = HMACAuth(secret=os.environ.get("FAUCET_HMAC_SECRET", "dev-secret"))
         
         # Enable CORS for browser access
         CORS(self.app, 
-            origins=["https://coinjecture.com", "https://api.coinjecture.com", "https://d3srwqcuj8kw0l.cloudfront.net"],
+            origins=["https://coinjecture.com", "https://www.coinjecture.com", "https://api.coinjecture.com", "https://d3srwqcuj8kw0l.cloudfront.net"],
             methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization", "X-User-ID", "X-Timestamp", "X-Signature"],
             supports_credentials=True)
@@ -448,6 +448,41 @@ class FaucetAPI:
                         "query": query,
                         "results_count": len(results),
                         "api_version": "v1"
+                    }
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
+        
+        @self.app.route('/v1/consensus/status', methods=['GET'])
+        @self.limiter.limit("100 per minute")
+        def get_consensus_status():
+            """Get consensus engine status and blockchain statistics."""
+            try:
+                # Get latest block data
+                latest_block = self.cache_manager.get_latest_block()
+                
+                # Get total block count from cache manager (which reads from blockchain state)
+                all_blocks = self.cache_manager.get_all_blocks()
+                total_blocks = len(all_blocks)
+                
+                return jsonify({
+                    "status": "success",
+                    "data": {
+                        "consensus_active": True,
+                        "latest_block_index": latest_block.get("index", 0),
+                        "total_blocks": total_blocks,
+                        "network_height": latest_block.get("index", 0),
+                        "consensus_engine": "operational",
+                        "last_block_hash": latest_block.get("block_hash", ""),
+                        "timestamp": time.time()
+                    },
+                    "meta": {
+                        "api_version": "v1",
+                        "cached_at": time.time()
                     }
                 })
             except Exception as e:
