@@ -131,13 +131,14 @@ class DynamicWorkScoreTokenomics:
         recent_avg_work = self._get_recent_average_work()
         
         # 3. Reward is proportional to work contribution
-        # Using logarithmic scale to prevent extreme values
+        # Use more reasonable scaling to ensure meaningful rewards
         if recent_avg_work > 0:
             work_ratio = block_work_score / recent_avg_work
-            base_reward = math.log1p(work_ratio)  # log(1 + x) for smooth scaling
+            # Use square root scaling for more reasonable rewards
+            base_reward = math.sqrt(1 + work_ratio) * 10  # Scale up by 10x for meaningful rewards
         else:
-            # Genesis case: first blocks get unit reward
-            base_reward = 1.0
+            # Genesis case: first blocks get reasonable reward
+            base_reward = 50.0
         
         # 4. Apply deflation based on network maturity
         # As cumulative work grows, new work becomes less "novel"
@@ -181,13 +182,13 @@ class DynamicWorkScoreTokenomics:
         if self.cumulative_work_score == 0:
             return 1.0
         
-        # Option 1: Inverse relationship with cumulative work
-        # As cumulative work doubles, rewards halve
-        # This creates natural logarithmic deflation
-        work_halvings = math.log2(self.cumulative_work_score + 1)
-        deflation = 1.0 / (2 ** (work_halvings / 10))  # Halve every 10 doublings
+        # More reasonable deflation: much gentler curve
+        # Use square root scaling instead of exponential
+        # This prevents rewards from becoming too small too quickly
+        work_factor = math.sqrt(self.cumulative_work_score + 1)
+        deflation = 1.0 / (1.0 + work_factor * 0.001)  # Much gentler deflation
         
-        return max(0.01, deflation)  # Floor at 1% to never reach zero
+        return max(0.1, deflation)  # Floor at 10% to maintain reasonable rewards
     
     def _calculate_diversity_bonus(self, capacity: ProblemTier) -> float:
         """

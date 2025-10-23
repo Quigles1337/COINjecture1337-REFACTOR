@@ -141,9 +141,15 @@ work_score =
     energy_efficiency
 ```
 
-**Anti-Grinding**:
+**Anti-Grinding & Commitment Binding**:
 - `epoch_salt = H(parent_hash || round(timestamp/epoch))`
-- `commitment = H(encode(problem_params) || miner_salt || epoch_salt)`
+- `solution_hash = H(solution)`
+- `commitment = H(encode(problem_params) || miner_salt || epoch_salt || solution_hash)`
+
+**Security Properties**:
+1. **Binding**: Commitment cryptographically binds to solution via H(solution)
+2. **Hiding**: Hash reveals nothing about actual solution structure
+3. **Anti-grinding**: Epoch salt prevents pre-mining many problems
 
 ### 3.4 Network Module
 **Reference**: [docs/blockchain/network.md](docs/blockchain/network.md)
@@ -414,14 +420,15 @@ deflation_factor = 1 / (2^(log2(cumulative_work)/10))
 **Purpose**: Prevent grinding attacks where miners generate many problems to find easy ones
 
 **Mechanism**:
-1. **Commit Phase**: Miner creates `commitment = H(problem_params || miner_salt || epoch_salt)`
+1. **Commit Phase**: Miner creates `commitment = H(problem_params || miner_salt || epoch_salt || H(solution))`
 2. **Mine Phase**: Miner finds header with sufficient work score
 3. **Reveal Phase**: Miner publishes solution bundle, proves commitment matches
 
 **Security Properties**:
 - Epoch salt derived from parent hash (unpredictable)
 - Miner salt must be unique per header
-- Commitment binding prevents changing problem after mining
+- Solution hash binding prevents changing solution after mining
+- Commitment cryptographically binds to actual solution (prevents fake reveals)
 
 ### 8.2 Fork Choice
 
@@ -561,6 +568,58 @@ cumulative_work[block] = cumulative_work[parent] + work_score[block]
 - Read blockchain/node.README.md for role selection
 - Review blockchain/storage.README.md for storage requirements
 - Check scripts/devnet.README.md for testing setup
+
+## Module Dependency Map
+
+Based on actual code analysis, here are the real module relationships:
+
+```
+Core Dependencies:
+├── src/core/blockchain.py (foundational)
+│   └── Imports: psutil, hashlib, dataclasses, json, time, os, random, math
+│
+├── src/pow.py
+│   └── Imports: src/core/blockchain (ComputationalComplexity, ProblemTier, etc.)
+│
+├── src/consensus.py
+│   └── Imports: src/core/blockchain, src/pow, src/storage
+│
+├── src/storage.py
+│   └── Imports: src/core/blockchain
+│
+├── src/network.py
+│   └── Imports: src/core/blockchain, src/consensus, src/storage, src/pow
+│
+├── src/node.py
+│   └── Imports: src/core/blockchain, src/pow, src/storage, src/consensus, 
+│                src/network, src/user_submissions/*
+│
+└── src/api/faucet_server.py
+    └── Imports: src/api/* (cache_manager, schema, ingest_store, auth, etc.)
+```
+
+**Key Dependencies**:
+- `src/core/blockchain.py` is the foundational module (no internal dependencies)
+- `src/pow.py` depends only on core blockchain structures
+- `src/consensus.py` orchestrates pow, storage, and blockchain modules
+- `src/network.py` provides P2P communication for consensus
+- `src/node.py` is the main orchestrator that composes all services
+- `src/api/` modules provide external interfaces
+
+**Removed/Consolidated**:
+- `src/consensus_v2.py` (experimental, removed)
+- `consensus_service_p2p.py` (experimental, removed)
+- Various v2 and fix files (temporary, removed)
+
+## Network Configuration
+
+**TestNet Details:**
+- Network ID: `coinjecture-mainnet-v1` (maintains genesis compatibility)
+- Genesis Block: `d1700c2681b75c1d22ed08285994c202d310ff25cf40851365ca6fea22011358`
+- Bootstrap Node: `167.172.213.70:5000`
+- Current Peers: 16 connected (max 20)
+- Consensus: Proof of Computational Work (NP-Complete problems)
+- Tokenomics: Emergent (no fixed supply, gentle deflation)
 
 ## Summary
 

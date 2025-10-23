@@ -13,8 +13,9 @@ Interfaces
 
 - Commit–reveal
   - derive_epoch_salt(parent_hash:[32]) -> epoch_salt:[32]
-  - create_commitment(problem_params_bytes, miner_salt:[32]) -> [32]
-  - verify_commitment(problem_params_bytes, miner_salt, commitment) -> bool
+  - create_commitment(problem_params_bytes, miner_salt:[32], solution_hash:[32]) -> [32]
+  - verify_commitment(problem_params_bytes, miner_salt, solution_hash, commitment) -> bool
+  - compute_solution_hash(solution) -> solution_hash:[32]
 
 Supported problems (initial)
 - subset_sum: exact DP solver; verify sum(solution)==target
@@ -34,10 +35,16 @@ Difficulty mapping
 - EWMA of observed scores to maintain target block interval (e.g., 30s)
 - next_target = clamp(alpha*prev_target + (1-alpha)*median_score, bounds)
 
-Anti-grinding
+Anti-grinding & Commitment Binding
 - miner_salt must be unique per header
 - epoch_salt = H(parent_hash||round(timestamp/epoch))
-- commitment = H(encode(problem_params)||miner_salt||epoch_salt)
+- solution_hash = H(solution)
+- commitment = H(encode(problem_params)||miner_salt||epoch_salt||solution_hash)
+
+Security Properties:
+1. Binding: Valid commitment can only come from valid proof (collision resistance)
+2. Hiding: Commitment reveals nothing about proof (solution hash hides actual solution)
+3. Anti-grinding: Epoch salt prevents pre-mining many problems
 
 Serialization of problem params
 - Each problem defines `encode_params(problem)->bytes` and `decode_params(bytes)->problem`

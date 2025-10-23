@@ -1,5 +1,7 @@
 # COINjecture Dynamic Work Score Tokenomics
 
+> **Note**: This describes the testnet tokenomics. Mainnet parameters may differ based on testnet results.
+
 ## Overview
 
 COINjecture implements an adaptive tokenomics system that responds to actual network behavior rather than using static parameters. Tokenomics emerge from measured computational work and real-world market forces.

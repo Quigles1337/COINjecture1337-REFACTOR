@@ -34,6 +34,13 @@ async function waitForNobleEd25519() {
     await new Promise(resolve => setTimeout(resolve, 100));
     attempts++;
   }
+  
+  // Final fallback to Web Crypto API
+  if (window.ed25519Fallback === 'webcrypto' && window.crypto && window.crypto.subtle) {
+    console.log('Using Web Crypto API fallback for Ed25519');
+    return 'webcrypto';
+  }
+  
   throw new Error('Ed25519 library failed to load');
 }
 
@@ -50,7 +57,7 @@ class WebInterface {
     // Wallet dashboard elements
     this.walletDashboard = document.getElementById('wallet-dashboard');
     this.walletAddress = document.getElementById('wallet-address');
-    this.rewardsTotal = document.getElementById('rewards-total');
+    this.rewardsTotal = document.getElementById('status-rewards-total');
     this.blocksMined = document.getElementById('blocks-mined');
     this.copyAddressBtn = document.getElementById('copy-address-btn');
     
@@ -212,6 +219,21 @@ class WebInterface {
     if (clickedLink) {
       clickedLink.classList.add('active');
     }
+
+    // Handle page-specific logic
+    this.currentPage = page;
+    
+    if (page === 'metrics') {
+      // Start metrics polling when metrics page is shown
+      this.startMetricsPolling();
+      // Load initial metrics
+      this.fetchMetrics().then(metrics => {
+        this.updateMetricsDashboard(metrics);
+      });
+    } else {
+      // Stop metrics polling when leaving metrics page
+      this.stopMetricsPolling();
+    }
     
     // Handle specific page content
     switch(page) {
@@ -249,10 +271,9 @@ class WebInterface {
     try {
       this.addOutput('🔍 Checking consensus engine status...');
       
-      // Check blockchain data
-      const [latestResponse, allBlocksResponse, leaderboardResponse] = await Promise.all([
-        this.fetchWithFallback('/v1/data/block/latest'),
-        this.fetchWithFallback('/v1/data/blocks/all'),
+      // Check blockchain data using consolidated API
+      const [metricsResponse, leaderboardResponse] = await Promise.all([
+        this.fetchWithFallback('/v1/metrics/dashboard'),
         this.fetchWithFallback('/v1/rewards/leaderboard')
       ]);
 
@@ -321,10 +342,9 @@ class WebInterface {
     try {
       this.addOutput('🔍 Checking blockchain processing status...');
       
-      // Check blockchain data
-      const [latestResponse, allBlocksResponse] = await Promise.all([
-        this.fetchWithFallback('/v1/data/block/latest'),
-        this.fetchWithFallback('/v1/data/blocks/all')
+      // Check blockchain data using consolidated API
+      const [metricsResponse] = await Promise.all([
+        this.fetchWithFallback('/v1/metrics/dashboard')
       ]);
 
       this.addMultiLineOutput([
@@ -1015,9 +1035,9 @@ class WebInterface {
       
       let endpoint;
       if (isLatest) {
-        endpoint = `${this.apiBase}/v1/data/block/latest`;
+        endpoint = `${this.apiBase}/v1/metrics/dashboard`;
       } else if (index) {
-        endpoint = `${this.apiBase}/v1/data/block/${index}`;
+        endpoint = `${this.apiBase}/v1/metrics/dashboard`; // Use consolidated API for all block data
       } else {
         this.addOutput('❌ Usage: get-block --latest or get-block --index=<number>', 'error');
         return;
@@ -1115,45 +1135,37 @@ class WebInterface {
       this.addOutput(`⛏️  Starting mining with ${tier} tier...`);
       this.addOutput('🔄 Connecting to P2P blockchain network...');
       
-      // Fetch blockchain data from consensus engine
-      const [latestResponse, allBlocksResponse] = await Promise.all([
-        this.fetchWithFallback('/v1/data/block/latest'),
-        this.fetchWithFallback('/v1/data/blocks/all')
-      ]);
+      // Fetch blockchain data from metrics (consecutive blockchain)
+      const metricsResponse = await this.fetchWithFallback('/v1/metrics/dashboard');
 
-      if (latestResponse.ok && allBlocksResponse.ok) {
-        const latestData = await latestResponse.json();
-        const allBlocksData = await allBlocksResponse.json();
+      if (metricsResponse.ok) {
+        const metricsData = await metricsResponse.json();
         
-        if (latestData.status === 'success' && allBlocksData.status === 'success') {
-          const currentBlock = latestData.data;
-          const totalBlocks = allBlocksData.meta.total_blocks;
+        if (metricsData.status === 'success') {
+          const blockchain = metricsData.data.blockchain;
+          const latestBlock = blockchain.latest_block;
+          const latestHash = blockchain.latest_hash;
+          const validatedBlocks = blockchain.validated_blocks;
           
-          this.addOutput(`📊 Current blockchain: Block #${currentBlock.index || totalBlocks}`);
+          this.addOutput(`📊 Current blockchain: Block #${latestBlock}`);
           
-          // Try to get block hash from multiple sources
-          let blockHash = currentBlock.block_hash || currentBlock.hash;
-          if (!blockHash && currentBlock.cid) {
-            blockHash = currentBlock.cid;
-          }
-          
-          if (blockHash) {
-            this.addOutput(`🔗 Latest hash: ${blockHash.substring(0, 16)}...`);
-            this.addOutput(`🌐 IPFS CID: ${blockHash}`);
+          if (latestHash && latestHash !== 'N/A') {
+            this.addOutput(`🔗 Latest hash: ${latestHash}`);
+            this.addOutput(`🌐 IPFS CID: ${latestHash}`);
           } else {
             this.addOutput(`🔗 Latest hash: Fetching from P2P network...`);
             this.addOutput(`🌐 IPFS CID: Available via consensus engine`);
           }
           
-          this.addOutput(`📈 Total blocks in network: ${totalBlocks}`);
+          this.addOutput(`📈 Total blocks in network: ${validatedBlocks}`);
           this.addOutput(`🔄 P2P network status: Connected`);
         } else {
-          this.addOutput(`📊 Current blockchain: Block #5277 (P2P network)`);
+          this.addOutput(`📊 Current blockchain: Block #8763 (P2P network)`);
           this.addOutput(`🔗 Latest hash: Available via IPFS`);
           this.addOutput(`🌐 IPFS CID: Immutable block storage`);
         }
       } else {
-        this.addOutput(`📊 Current blockchain: Block #5277 (P2P network)`);
+        this.addOutput(`📊 Current blockchain: Block #8763 (P2P network)`);
         this.addOutput(`🔗 Latest hash: Available via IPFS`);
         this.addOutput(`🌐 IPFS CID: Immutable block storage`);
       }
@@ -1170,13 +1182,14 @@ class WebInterface {
                const timestamp = Math.floor(Date.now() / 1000);
                const workScore = tier === 'mobile' ? 10 : tier === 'desktop' ? 50 : 100;
                
-               // Get current blockchain height
-               const latestResponse = await this.fetchWithFallback('/v1/data/block/latest');
-               let currentHeight = 5286; // Default fallback
-               if (latestResponse.ok) {
-                 const latestData = await latestResponse.json();
-                 if (latestData.status === 'success') {
-                   currentHeight = latestData.data.index + 1;
+               // Get current blockchain height from metrics (consecutive blockchain)
+               const metricsResponse = await this.fetchWithFallback('/v1/metrics/dashboard');
+               let currentHeight = 8763; // Default fallback for consecutive blockchain
+               if (metricsResponse.ok) {
+                 const metricsData = await metricsResponse.json();
+                 if (metricsData.status === 'success') {
+                   const blockchain = metricsData.data.blockchain;
+                   currentHeight = blockchain.latest_block + 1;
                  }
                }
                
@@ -1247,9 +1260,9 @@ class WebInterface {
              // Check and display current rewards and blockchain height
              this.addOutput('🔍 Checking current rewards and blockchain status...');
              try {
-               const [rewardsResponse, blockchainResponse] = await Promise.all([
+               const [rewardsResponse, metricsResponse] = await Promise.all([
                  this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`),
-                 this.fetchWithFallback('/v1/data/block/latest')
+                 this.fetchWithFallback('/v1/metrics/dashboard')
                ]);
                
                // Display rewards
@@ -1266,18 +1279,18 @@ class WebInterface {
                  this.addOutput(`❌ Rewards API error: ${rewardsResponse.status}`);
                }
                
-               // Display blockchain height
-               if (blockchainResponse.ok) {
-                 const blockchainData = await blockchainResponse.json();
-                 if (blockchainData.status === 'success') {
-                   const block = blockchainData.data;
-                   this.addOutput(`📊 Current blockchain height: #${block.index}`);
-                   this.addOutput(`🔗 Latest block hash: ${block.block_hash ? block.block_hash.substring(0, 16) + '...' : 'N/A'}`);
+               // Display blockchain height from metrics (consecutive blockchain)
+               if (metricsResponse.ok) {
+                 const metricsData = await metricsResponse.json();
+                 if (metricsData.status === 'success') {
+                   const blockchain = metricsData.data.blockchain;
+                   this.addOutput(`📊 Current blockchain height: #${blockchain.latest_block}`);
+                   this.addOutput(`🔗 Latest block hash: ${blockchain.latest_hash ? blockchain.latest_hash.substring(0, 16) + '...' : 'N/A'}`);
                  } else {
-                   this.addOutput(`❌ Blockchain data error: ${blockchainData.message}`);
+                   this.addOutput(`❌ Blockchain data error: ${metricsData.message}`);
                  }
                } else {
-                 this.addOutput(`❌ Blockchain API error: ${blockchainResponse.status}`);
+                 this.addOutput(`❌ Blockchain API error: ${metricsResponse.status}`);
                }
              } catch (error) {
                this.addOutput(`❌ Status check failed: ${error.message}`);
@@ -1936,7 +1949,7 @@ class WebInterface {
       '   • User Management: https://api.coinjecture.com/v1/user/',
       '',
       '📋 API Examples:',
-      '   curl "https://api.coinjecture.com/v1/data/block/latest"',
+      '   curl "https://api.coinjecture.com/v1/metrics/dashboard"',
       '   curl "https://api.coinjecture.com/v1/rewards/leaderboard"',
       '   curl "https://api.coinjecture.com/v1/rewards/YOUR_ADDRESS"',
       '',
@@ -2416,30 +2429,27 @@ class WebInterface {
     try {
       this.addOutput('📊 Fetching blockchain statistics...');
       
-      // Fetch both latest block and total blocks from API
-      const [latestResponse, totalResponse] = await Promise.all([
-        this.fetchWithFallback('/v1/data/block/latest'),
-        this.fetchWithFallback('/v1/data/blocks/all')
-      ]);
+      // Fetch from metrics dashboard for consecutive blockchain data
+      const metricsResponse = await this.fetchWithFallback('/v1/metrics/dashboard');
+      const metricsData = await metricsResponse.json();
       
-      const latestData = await latestResponse.json();
-      const totalData = await totalResponse.json();
-      
-      if (latestData.status === 'success' && totalData.status === 'success') {
-        const block = latestData.data;
-        const totalBlocks = totalData.meta ? totalData.meta.total_blocks : 0;
-        
-        // Safely get block hash
-        const blockHash = block.block_hash || block.hash || 'N/A';
-        const hashDisplay = blockHash !== 'N/A' ? blockHash.substring(0, 16) + '...' : 'N/A';
+      if (metricsData.status === 'success') {
+        const blockchain = metricsData.data.blockchain;
+        const totalBlocks = blockchain ? blockchain.validated_blocks : 0;
+        const latestBlock = blockchain ? blockchain.latest_block : 0;
+        const latestHash = blockchain ? blockchain.latest_hash : 'N/A';
+        const consensusActive = blockchain ? blockchain.consensus_active : false;
+        const miningAttempts = blockchain ? blockchain.mining_attempts : 0;
+        const successRate = blockchain ? blockchain.success_rate : 0;
         
         this.addMultiLineOutput([
-          '📊 Blockchain Statistics:',
-          `   Total Blocks: ${totalBlocks}`,
-          `   Latest Block: #${block.index || 'N/A'}`,
-          `   Latest Hash: ${hashDisplay}`,
-          `   Timestamp: ${block.timestamp ? new Date(block.timestamp * 1000).toLocaleString() : 'N/A'}`,
-          `   Transactions: ${block.transactions ? block.transactions.length : 0}`
+          '📊 Blockchain Statistics (Consecutive Chain):',
+          `   Validated Blocks: ${totalBlocks.toLocaleString()}`,
+          `   Latest Block: #${latestBlock.toLocaleString()}`,
+          `   Latest Hash: ${latestHash}`,
+          `   Consensus: ${consensusActive ? 'Active' : 'Inactive'}`,
+          `   Mining Attempts: ${miningAttempts.toLocaleString()}`,
+          `   Success Rate: ${successRate}%`
         ]);
       } else {
         this.addOutput('❌ Failed to fetch blockchain statistics', 'error');
@@ -2447,6 +2457,255 @@ class WebInterface {
     } catch (error) {
       this.addOutput(`❌ Network error: ${error.message}`, 'error');
     }
+  }
+
+  async fetchMetrics() {
+    try {
+      const response = await this.fetchWithFallback('/v1/metrics/dashboard');
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      return null;
+    }
+  }
+
+  updateMetricsDashboard(metrics) {
+    if (!metrics) return;
+
+    // Update Blockchain Overview
+    if (metrics.blockchain) {
+      document.getElementById('validated-blocks').textContent = metrics.blockchain.validated_blocks.toLocaleString();
+      document.getElementById('latest-block').textContent = metrics.blockchain.latest_block.toLocaleString();
+      document.getElementById('latest-hash').textContent = metrics.blockchain.latest_hash;
+      document.getElementById('consensus-status').textContent = metrics.blockchain.consensus_active ? 'Active' : 'Inactive';
+      document.getElementById('mining-attempts').textContent = metrics.blockchain.mining_attempts.toLocaleString();
+      document.getElementById('success-rate').textContent = metrics.blockchain.success_rate + '%';
+    }
+
+    // Update TPS
+    if (metrics.transactions) {
+      document.getElementById('tps-current').textContent = (metrics.transactions.tps_current || 0).toFixed(2);
+      document.getElementById('tps-1min').textContent = (metrics.transactions.tps_1min || 0).toFixed(2);
+      document.getElementById('tps-5min').textContent = (metrics.transactions.tps_5min || 0).toFixed(2);
+      document.getElementById('tps-1hr').textContent = (metrics.transactions.tps_1hour || 0).toFixed(2);
+      document.getElementById('tps-24hr').textContent = (metrics.transactions.tps_24hour || 0).toFixed(2);
+      this.updateTrendIndicator('tps-trend', metrics.transactions.trend || '→');
+    }
+
+    // Update Block Time
+    if (metrics.block_time) {
+      document.getElementById('block-time-current').textContent = (metrics.block_time.avg_seconds || 0).toFixed(2);
+      document.getElementById('block-time-avg').textContent = (metrics.block_time.avg_seconds || 0).toFixed(2);
+      document.getElementById('block-time-median').textContent = (metrics.block_time.median_seconds || 0).toFixed(2);
+      document.getElementById('block-time-100').textContent = (metrics.block_time.last_100_blocks || 0).toFixed(2);
+      this.updateTrendIndicator('block-time-trend', '→');
+    }
+
+    // Update Hash Rate
+    if (metrics.hash_rate) {
+      document.getElementById('hash-rate-current').textContent = this.formatHashRate(metrics.hash_rate.current_hs);
+      document.getElementById('hash-rate-1min').textContent = this.formatHashRate(metrics.hash_rate.current_hs);
+      document.getElementById('hash-rate-5min').textContent = this.formatHashRate(metrics.hash_rate['5min_hs']);
+      document.getElementById('hash-rate-1hr').textContent = this.formatHashRate(metrics.hash_rate['1hour_hs']);
+      this.updateTrendIndicator('hash-rate-trend', metrics.hash_rate.trend);
+    }
+
+    // Update Network Status
+    if (metrics.network) {
+      document.getElementById('network-peers').textContent = metrics.network.active_peers || 0;
+      document.getElementById('network-peers-count').textContent = metrics.network.active_peers || 0;
+      document.getElementById('network-miners').textContent = metrics.network.active_miners || 0;
+      document.getElementById('network-difficulty').textContent = (metrics.network.avg_difficulty || 0).toFixed(2);
+      this.updateTrendIndicator('network-trend', '→');
+    }
+
+    // Update Rewards
+    if (metrics.rewards) {
+      document.getElementById('rewards-total').textContent = this.formatNumber(metrics.rewards.total_distributed);
+      document.getElementById('rewards-distributed').textContent = this.formatNumber(metrics.rewards.total_distributed);
+      document.getElementById('rewards-unit').textContent = metrics.rewards.unit;
+      this.updateTrendIndicator('rewards-trend', '→');
+    }
+
+    // Update Efficiency
+    if (metrics.efficiency) {
+      document.getElementById('efficiency-current').textContent = (metrics.efficiency.efficiency_ratio || 0).toFixed(4);
+      document.getElementById('efficiency-solved').textContent = (metrics.efficiency.problems_solved_1h || 0).toLocaleString();
+      document.getElementById('efficiency-work').textContent = this.formatNumber(metrics.efficiency.total_work_score_1h || 0);
+      document.getElementById('efficiency-ratio').textContent = (metrics.efficiency.efficiency_ratio || 0).toFixed(4);
+      this.updateTrendIndicator('efficiency-trend', '→');
+    }
+
+    // Update Recent Transactions
+    if (metrics.recent_transactions) {
+      this.updateRecentTransactions(metrics.recent_transactions);
+    }
+
+    // Update last updated time
+    const lastUpdated = new Date(metrics.last_updated * 1000).toLocaleTimeString();
+    document.getElementById('last-updated').textContent = lastUpdated;
+  }
+
+  formatHashRate(hashRate) {
+    if (hashRate >= 1000000) {
+      return (hashRate / 1000000).toFixed(2) + ' MH/s';
+    } else if (hashRate >= 1000) {
+      return (hashRate / 1000).toFixed(2) + ' KH/s';
+    } else {
+      return hashRate.toFixed(2) + ' H/s';
+    }
+  }
+
+  formatNumber(num) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(2) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(2) + 'K';
+    } else {
+      return num.toFixed(2);
+    }
+  }
+
+  updateRecentTransactions(transactions) {
+    const transactionsList = document.getElementById('transactions-list');
+    if (!transactionsList) return;
+
+    transactionsList.innerHTML = '';
+    
+    transactions.forEach(tx => {
+      const transactionRow = document.createElement('div');
+      transactionRow.className = 'transaction-row';
+      transactionRow.innerHTML = `
+        <div class="transaction-block">
+          <div class="block-header">
+            <span class="block-index">#${tx.block_index}</span>
+            <span class="block-age">${tx.age_display}</span>
+          </div>
+          <div class="block-details">
+            <div class="block-hash">
+              <span class="label">Hash:</span>
+              <span class="value" title="${tx.block_hash}">${tx.block_hash_short}</span>
+            </div>
+            <div class="block-miner">
+              <span class="label">Miner:</span>
+              <span class="value" title="${tx.miner}">${tx.miner_short}</span>
+            </div>
+            <div class="block-work">
+              <span class="label">Work Score:</span>
+              <span class="value">${tx.work_score}</span>
+            </div>
+            <div class="block-capacity">
+              <span class="label">Capacity:</span>
+              <span class="value">${tx.capacity}</span>
+            </div>
+            <div class="block-timestamp">
+              <span class="label">Time:</span>
+              <span class="value">${tx.timestamp_display}</span>
+            </div>
+            <div class="block-previous">
+              <span class="label">Previous:</span>
+              <span class="value" title="${tx.previous_hash}">${tx.previous_hash_short}</span>
+            </div>
+            <div class="block-cid">
+              <span class="label">CID:</span>
+              <a class="value cid-link" href="https://gateway.pinata.cloud/ipfs/${tx.cid}" target="_blank" title="View on IPFS: ${tx.cid}" onclick="event.preventDefault(); openIPFSViewer('${tx.cid}')">${tx.cid_short}</a>
+            </div>
+            <div class="block-gas">
+              <span class="label">Gas Used:</span>
+              <span class="value">${tx.gas_used_formatted}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      transactionsList.appendChild(transactionRow);
+    });
+  }
+
+  updateTrendIndicator(elementId, trend) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    element.textContent = trend;
+    element.className = 'metric-trend';
+    
+    if (trend === '↑') {
+      element.classList.add('up');
+    } else if (trend === '↓') {
+      element.classList.add('down');
+    } else {
+      element.classList.add('stable');
+    }
+  }
+
+  startMetricsPolling() {
+    this.metricsInterval = setInterval(async () => {
+      if (this.currentPage === 'metrics') {
+        const metrics = await this.fetchMetrics();
+        this.updateMetricsDashboard(metrics);
+      }
+    }, 15000); // 15 seconds
+  }
+
+  stopMetricsPolling() {
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval);
+      this.metricsInterval = null;
+    }
+  }
+
+  // IPFS Viewer with multiple gateway fallbacks
+  openIPFSViewer(cid) {
+    const gateways = [
+      `https://gateway.pinata.cloud/ipfs/${cid}`,
+      `https://ipfs.io/ipfs/${cid}`,
+      `https://cloudflare-ipfs.com/ipfs/${cid}`,
+      `https://dweb.link/ipfs/${cid}`,
+      `https://gateway.ipfs.io/ipfs/${cid}`
+    ];
+    
+    // Try the first gateway
+    const newWindow = window.open(gateways[0], '_blank');
+    
+    // If the first gateway fails, show a modal with options
+    setTimeout(() => {
+      if (newWindow && newWindow.closed) {
+        this.showIPFSModal(cid, gateways);
+      }
+    }, 2000);
+  }
+
+  showIPFSModal(cid, gateways) {
+    const modal = document.createElement('div');
+    modal.className = 'ipfs-modal';
+    modal.innerHTML = `
+      <div class="ipfs-modal-content">
+        <div class="ipfs-modal-header">
+          <h3>IPFS Content Viewer</h3>
+          <button class="ipfs-modal-close" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</button>
+        </div>
+        <div class="ipfs-modal-body">
+          <p><strong>CID:</strong> ${cid}</p>
+          <p>Choose an IPFS gateway to view this content:</p>
+          <div class="ipfs-gateway-list">
+            ${gateways.map((gateway, index) => `
+              <a href="${gateway}" target="_blank" class="ipfs-gateway-link">
+                Gateway ${index + 1}: ${gateway.replace('https://', '').split('/')[0]}
+              </a>
+            `).join('')}
+          </div>
+          <div class="ipfs-copy-section">
+            <p>Or copy the CID to use with your local IPFS client:</p>
+            <div class="ipfs-copy-input">
+              <input type="text" value="${cid}" readonly>
+              <button onclick="navigator.clipboard.writeText('${cid}'); this.textContent='Copied!'">Copy CID</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
   }
 
   async fetchWithFallback(endpoint, options = {}) {
@@ -2483,21 +2742,21 @@ class WebInterface {
   async updateNetworkStatus() {
     if (this.status) {
       try {
-        // Get blockchain stats, rewards, and consensus status
-        const [latestResponse, rewardsResponse, consensusResponse] = await Promise.all([
-          this.fetchWithFallback('/v1/data/block/latest'),
-          this.wallet ? this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`) : Promise.resolve({ok: false}),
-          this.fetchWithFallback('/v1/consensus/status').catch(() => ({ok: false})) // Optional consensus status
+        // Get blockchain stats, rewards, and metrics status using consolidated API
+        const [metricsResponse, rewardsResponse] = await Promise.all([
+          this.fetchWithFallback('/v1/metrics/dashboard'),
+          this.wallet ? this.fetchWithFallback(`/v1/rewards/${this.wallet.address}`) : Promise.resolve({ok: false})
         ]);
 
         let statusText = '🌐 Connected';
         
-        // Add block height
-        if (latestResponse.ok) {
-          const latestData = await latestResponse.json();
-          if (latestData.status === 'success') {
-            const blockHeight = latestData.data.index || 'N/A';
-            statusText += ` | 📊 Block #${blockHeight}`;
+        // Add block height from metrics (consecutive blockchain)
+        if (metricsResponse.ok) {
+          const metricsData = await metricsResponse.json();
+          if (metricsData.status === 'success') {
+            const blockchain = metricsData.data.blockchain;
+            const latestBlock = blockchain.latest_block || 0;
+            statusText += ` | 📊 Block #${latestBlock}`;
           }
         }
         
@@ -2511,21 +2770,20 @@ class WebInterface {
           }
         }
         
-        // Add consensus engine status
-        if (consensusResponse.ok) {
-          const consensusData = await consensusResponse.json();
-          if (consensusData.status === 'success') {
-            const consensus = consensusData.data;
-            const processed = consensus.latest_block_index || 0;
-            const total = consensus.total_blocks || 0;
-            // Calculate progress percentage (processed/total * 100)
-            const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
-            statusText += ` | ⚙️ Consensus: ${processed}/${total} (${progress}%)`;
+        // Add consensus engine status from metrics
+        if (metricsResponse.ok) {
+          const metricsData = await metricsResponse.json();
+          if (metricsData.status === 'success') {
+            const blockchain = metricsData.data.blockchain;
+            const validatedBlocks = blockchain.validated_blocks || 0;
+            const latestBlock = blockchain.latest_block || 0;
+            const consensusActive = blockchain.consensus_active || false;
+            statusText += ` | ⚙️ Consensus: ${validatedBlocks} blocks (${consensusActive ? 'Active' : 'Inactive'})`;
           }
-      } else {
+        } else {
           // Fallback: show consensus is processing
           statusText += ` | ⚙️ Consensus: Processing...`;
-      }
+        }
         
         this.status.textContent = statusText;
     } catch (error) {

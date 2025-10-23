@@ -10,16 +10,89 @@
   <link rel="stylesheet" href="./style.css">
   <link rel="icon" href="data:,">
   <!-- @noble/ed25519 library for cryptographic wallet functionality -->
-  <script src="https://unpkg.com/@noble/ed25519@2.0.0/index.js" onerror="loadEd25519Fallback()"></script>
   <script>
-    function loadEd25519Fallback() {
-      console.log('Primary Ed25519 CDN failed, trying fallback...');
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@noble/ed25519@2.0.0/index.js';
-      script.onerror = function() {
-        console.error('All Ed25519 CDNs failed - using demo wallets');
-      };
-      document.head.appendChild(script);
+    // Try multiple CDN sources with different versions
+    function loadEd25519Library() {
+      // First check if Web Crypto API is available
+      if (window.crypto && window.crypto.subtle) {
+        console.log('Web Crypto API available - using as primary Ed25519 source');
+        window.ed25519Fallback = 'webcrypto';
+        return;
+      }
+      
+      const cdnSources = [
+        {
+          url: 'https://cdn.jsdelivr.net/npm/@noble/ed25519@1.7.3/dist/index.js',
+          name: 'jsDelivr v1.7.3'
+        },
+        {
+          url: 'https://unpkg.com/@noble/ed25519@1.7.3/dist/index.js',
+          name: 'unpkg v1.7.3'
+        },
+        {
+          url: 'https://cdn.jsdelivr.net/npm/@noble/ed25519@1.7.1/dist/index.js',
+          name: 'jsDelivr v1.7.1'
+        },
+        {
+          url: 'https://unpkg.com/@noble/ed25519@1.7.1/dist/index.js',
+          name: 'unpkg v1.7.1'
+        }
+      ];
+      
+      let currentIndex = 0;
+      
+      function tryNextSource() {
+        if (currentIndex >= cdnSources.length) {
+          console.error('All Ed25519 CDN sources failed - using Web Crypto API fallback');
+          // Try Web Crypto API as final fallback
+          if (window.crypto && window.crypto.subtle) {
+            console.log('Using Web Crypto API for Ed25519 operations');
+            window.ed25519Fallback = 'webcrypto';
+          } else {
+            console.log('Using demo wallets - no cryptographic support available');
+            window.ed25519Fallback = 'demo';
+          }
+          return;
+        }
+        
+        const source = cdnSources[currentIndex];
+        console.log(`Trying Ed25519 from ${source.name}...`);
+        
+        const script = document.createElement('script');
+        script.src = source.url;
+        script.onload = function() {
+          console.log(`Ed25519 library loaded successfully from ${source.name}`);
+          // Check for various ways the library might be exposed
+          if (window.nobleEd25519) {
+            console.log('Ed25519 library is ready (nobleEd25519)');
+          } else if (window.noble && window.noble.ed25519) {
+            window.nobleEd25519 = window.noble.ed25519;
+            console.log('Ed25519 library is ready (noble.ed25519)');
+          } else if (window.ed25519) {
+            window.nobleEd25519 = window.ed25519;
+            console.log('Ed25519 library is ready (ed25519)');
+          } else {
+            console.warn('Ed25519 library loaded but not accessible');
+            currentIndex++;
+            tryNextSource();
+          }
+        };
+        script.onerror = function() {
+          console.warn(`${source.name} failed, trying next source...`);
+          currentIndex++;
+          tryNextSource();
+        };
+        document.head.appendChild(script);
+      }
+      
+      tryNextSource();
+    }
+    
+    // Load the library when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadEd25519Library);
+    } else {
+      loadEd25519Library();
     }
   </script>
 </head>
@@ -36,6 +109,7 @@
         <a href="#terminal" class="nav-link active" data-page="terminal">Terminal</a>
         <a href="#api" class="nav-link" data-page="api">API Docs</a>
         <a href="#download" class="nav-link" data-page="download">Download CLI</a>
+        <a href="#metrics" class="nav-link" data-page="metrics">Metrics</a>
         <a href="#proof" class="nav-link" data-page="proof">Proof</a>
       </div>
     </div>
@@ -54,7 +128,7 @@
               <button class="copy-btn" id="copy-address-btn" title="Copy Address">📋</button>
             </div>
             <div class="rewards-info">
-              <span class="rewards-total" id="rewards-total">0 BEANS</span>
+              <span class="rewards-total" id="status-rewards-total">0 BEANS</span>
               <span class="blocks-mined" id="blocks-mined">0 blocks</span>
             </div>
           </div>
@@ -77,77 +151,31 @@
         <h1>API Documentation</h1>
         
         <div class="api-section">
-          <h2>Live API Endpoints</h2>
+          <h2>Consolidated API Endpoints (v2)</h2>
+          <div class="consolidation-badge">
+            <span class="badge-text">83% Reduction</span>
+            <span class="badge-subtitle">30 endpoints → 5 endpoints</span>
+          </div>
           <div class="endpoint-list">
             <div class="endpoint">
               <span class="method">GET</span>
-              <span class="path">/v1/data/block/latest</span>
-              <span class="description">Get latest blockchain block</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/data/block/{index}</span>
-              <span class="description">Get block by index</span>
+              <span class="path">/v1/metrics/dashboard</span>
+              <span class="description">Comprehensive blockchain metrics & data</span>
             </div>
             <div class="endpoint">
               <span class="method">GET</span>
               <span class="path">/v1/peers</span>
-              <span class="description">List connected peers</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/display/telemetry/latest</span>
-              <span class="description">Get network telemetry</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">POST</span>
-              <span class="path">/v1/ingest/block</span>
-              <span class="description">Submit mining block</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">POST</span>
-              <span class="path">/v1/ingest/block/cli</span>
-              <span class="description">Submit mining block from CLI</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/consensus/status</span>
-              <span class="description">Get consensus engine status</span>
+              <span class="description">P2P network status & peer information</span>
             </div>
             <div class="endpoint">
               <span class="method">GET</span>
               <span class="path">/v1/rewards/{address}</span>
-              <span class="description">Get mining rewards for address</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/rewards/leaderboard</span>
-              <span class="description">Get mining leaderboard</span>
+              <span class="description">User rewards & wallet data</span>
             </div>
             <div class="endpoint">
               <span class="method">POST</span>
-              <span class="path">/v1/wallet/register</span>
-              <span class="description">Register wallet for persistence</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">POST</span>
-              <span class="path">/v1/wallet/verify</span>
-              <span class="description">Verify wallet ownership</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/ipfs/user/{address}</span>
-              <span class="description">Get IPFS data for wallet</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/ipfs/stats/{address}</span>
-              <span class="description">Get IPFS statistics for wallet</span>
-            </div>
-            <div class="endpoint">
-              <span class="method">GET</span>
-              <span class="path">/v1/ipfs/download/{address}</span>
-              <span class="description">Download IPFS data (JSON/CSV)</span>
+              <span class="path">/v1/ingest/block</span>
+              <span class="description">Submit new blocks to blockchain</span>
             </div>
             <div class="endpoint">
               <span class="method">GET</span>
@@ -237,35 +265,91 @@
         
         <div class="download-options">
           <div class="download-card">
-            <h2>macOS (Recommended)</h2>
+            <h2>macOS (Available)</h2>
             <div class="download-item">
-              <h3>COINjecture-macOS-v3.6.6-Final.zip</h3>
-              <p>Complete CLI package with zero security warnings</p>
+              <h3>COINjecture-macOS-v3.10.2-Final.zip</h3>
+              <p>Complete CLI package with wallet persistence and IPFS data access</p>
               <ul>
                 <li>✅ Zero Security Warnings</li>
                 <li>✅ No Python Required</li>
                 <li>✅ Interactive Menu</li>
                 <li>✅ Direct CLI Access</li>
                 <li>✅ Network Integration</li>
+                <li>✅ Wallet Persistence</li>
+                <li>✅ IPFS Data Access</li>
+                <li>✅ Real Cryptographic Wallets</li>
               </ul>
-              <a href="https://github.com/beanapologist/COINjecture/releases/download/v3.6.6/COINjecture-macOS-v3.6.6-Final.zip" class="download-btn">Download (39.2 MB)</a>
+              <a href="https://github.com/beanapologist/COINjecture/releases/download/v3.10.2/COINjecture-macOS-v3.10.2-Final.zip" class="download-btn">Download (42.1 MB)</a>
+            </div>
+          </div>
+          
+          <div class="download-card">
+            <h2>Windows (Available)</h2>
+            <div class="download-item">
+              <h3>COINjecture-Windows-v3.10.2.exe</h3>
+              <p>Windows CLI package with wallet persistence and IPFS data access</p>
+              <ul>
+                <li>✅ Zero Security Warnings</li>
+                <li>✅ No Python Required</li>
+                <li>✅ Interactive Menu</li>
+                <li>✅ Direct CLI Access</li>
+                <li>✅ Network Integration</li>
+                <li>✅ Wallet Persistence</li>
+                <li>✅ IPFS Data Access</li>
+                <li>✅ Real Cryptographic Wallets</li>
+              </ul>
+              <a href="https://github.com/beanapologist/COINjecture/releases/download/v3.10.2/COINjecture-Windows-v3.10.2.exe" class="download-btn">Download (41.8 MB)</a>
+            </div>
+          </div>
+          
+          <div class="download-card">
+            <h2>Linux (Available)</h2>
+            <div class="download-item">
+              <h3>COINjecture-Linux-v3.10.2.tar.gz</h3>
+              <p>Linux CLI package with wallet persistence and IPFS data access</p>
+              <ul>
+                <li>✅ Zero Security Warnings</li>
+                <li>✅ No Python Required</li>
+                <li>✅ Interactive Menu</li>
+                <li>✅ Direct CLI Access</li>
+                <li>✅ Network Integration</li>
+                <li>✅ Wallet Persistence</li>
+                <li>✅ IPFS Data Access</li>
+                <li>✅ Real Cryptographic Wallets</li>
+              </ul>
+              <a href="https://github.com/beanapologist/COINjecture/releases/download/v3.10.2/COINjecture-Linux-v3.10.2.tar.gz" class="download-btn">Download (40.3 MB)</a>
             </div>
           </div>
         </div>
         
         <div class="installation-steps">
           <h2>Installation Instructions</h2>
-          <ol>
-            <li>Download the zip file above</li>
-            <li>Extract and run <code>./install.sh</code></li>
-            <li>COINjecture launches automatically! 🚀</li>
-          </ol>
-        </div>
-        
-        <div class="other-platforms">
-          <h2>Other Platforms</h2>
-          <p>Windows Coming Soon</p>
-          <p>Linux Coming Soon</p>
+          <div class="platform-instructions">
+            <div class="platform">
+              <h3>macOS</h3>
+              <ol>
+                <li>Download the zip file above</li>
+                <li>Extract and run <code>./install.sh</code></li>
+                <li>COINjecture launches automatically! 🚀</li>
+              </ol>
+            </div>
+            <div class="platform">
+              <h3>Windows</h3>
+              <ol>
+                <li>Download the .exe file above</li>
+                <li>Run the installer as administrator</li>
+                <li>COINjecture launches automatically! 🚀</li>
+              </ol>
+            </div>
+            <div class="platform">
+              <h3>Linux</h3>
+              <ol>
+                <li>Download the .tar.gz file above</li>
+                <li>Extract and run <code>./install.sh</code></li>
+                <li>COINjecture launches automatically! 🚀</li>
+              </ol>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -319,8 +403,145 @@
         </div>
       </div>
     </div>
+
+    <!-- Blockchain Explorer Metrics Page -->
+    <div id="page-metrics" class="page">
+      <div class="metrics-dashboard">
+        <h1>🔍 COINjecture Blockchain Explorer</h1>
+        <div class="metrics-subtitle">Real-time blockchain statistics, network health, and transaction data</div>
+        
+        <!-- Blockchain Overview -->
+        <div class="blockchain-overview">
+          <div class="overview-card">
+            <div class="overview-header">Blockchain Status</div>
+            <div class="overview-content">
+              <div class="overview-item">
+                <span class="label">Validated Blocks:</span>
+                <span class="value" id="validated-blocks">0</span>
+              </div>
+              <div class="overview-item">
+                <span class="label">Latest Block:</span>
+                <span class="value" id="latest-block">0</span>
+              </div>
+              <div class="overview-item">
+                <span class="label">Latest Hash:</span>
+                <span class="value" id="latest-hash">N/A</span>
+              </div>
+              <div class="overview-item">
+                <span class="label">Consensus:</span>
+                <span class="value" id="consensus-status">Active</span>
+              </div>
+              <div class="overview-item">
+                <span class="label">Mining Attempts:</span>
+                <span class="value" id="mining-attempts">0</span>
+              </div>
+              <div class="overview-item">
+                <span class="label">Success Rate:</span>
+                <span class="value" id="success-rate">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="metrics-grid">
+          <!-- TPS Card -->
+          <div class="metric-card">
+            <div class="metric-header">Transactions Per Second</div>
+            <div class="metric-value" id="tps-current">0</div>
+            <div class="metric-trend" id="tps-trend">→</div>
+            <div class="metric-details">
+              <span>1min: <span id="tps-1min">0</span></span>
+              <span>5min: <span id="tps-5min">0</span></span>
+              <span>1hr: <span id="tps-1hr">0</span></span>
+              <span>24hr: <span id="tps-24hr">0</span></span>
+            </div>
+          </div>
+          
+          <!-- Block Time Card -->
+          <div class="metric-card">
+            <div class="metric-header">Block Time</div>
+            <div class="metric-value" id="block-time-current">0</div>
+            <div class="metric-trend" id="block-time-trend">→</div>
+            <div class="metric-details">
+              <span>Avg: <span id="block-time-avg">0</span>s</span>
+              <span>Median: <span id="block-time-median">0</span>s</span>
+              <span>Last 100: <span id="block-time-100">0</span>s</span>
+            </div>
+          </div>
+          
+          <!-- Hash Rate Card -->
+          <div class="metric-card">
+            <div class="metric-header">Network Hash Rate</div>
+            <div class="metric-value" id="hash-rate-current">0</div>
+            <div class="metric-trend" id="hash-rate-trend">→</div>
+            <div class="metric-details">
+              <span>Current: <span id="hash-rate-1min">0</span> H/s</span>
+              <span>5min: <span id="hash-rate-5min">0</span> H/s</span>
+              <span>1hr: <span id="hash-rate-1hr">0</span> H/s</span>
+            </div>
+          </div>
+          
+          <!-- Network Card -->
+          <div class="metric-card">
+            <div class="metric-header">Network Status</div>
+            <div class="metric-value" id="network-peers">0</div>
+            <div class="metric-trend" id="network-trend">→</div>
+            <div class="metric-details">
+              <span>Peers: <span id="network-peers-count">0</span></span>
+              <span>Miners: <span id="network-miners">0</span></span>
+              <span>Difficulty: <span id="network-difficulty">0</span></span>
+            </div>
+          </div>
+          
+          <!-- Rewards Card -->
+          <div class="metric-card">
+            <div class="metric-header">Total Rewards</div>
+            <div class="metric-value" id="rewards-total">0</div>
+            <div class="metric-trend" id="rewards-trend">→</div>
+            <div class="metric-details">
+              <span>Distributed: <span id="rewards-distributed">0</span> BEANS</span>
+              <span>Unit: <span id="rewards-unit">BEANS</span></span>
+            </div>
+          </div>
+          
+          <!-- Efficiency Card -->
+          <div class="metric-card">
+            <div class="metric-header">Computational Efficiency</div>
+            <div class="metric-value" id="efficiency-current">0</div>
+            <div class="metric-trend" id="efficiency-trend">→</div>
+            <div class="metric-details">
+              <span>Solved 1h: <span id="efficiency-solved">0</span></span>
+              <span>Work Score: <span id="efficiency-work">0</span></span>
+              <span>Ratio: <span id="efficiency-ratio">0</span></span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Recent Transactions -->
+        <div class="recent-transactions">
+          <h3>📋 Recent Transactions (Last 10 Blocks)</h3>
+          <div class="transactions-table">
+            <div class="transaction-header">
+              <span>Block</span>
+              <span>Hash</span>
+              <span>Miner</span>
+              <span>Work Score</span>
+              <span>Capacity</span>
+            </div>
+            <div id="transactions-list">
+              <!-- Transactions will be populated by JavaScript -->
+            </div>
+          </div>
+        </div>
+        
+        <div class="metrics-footer">
+          <div class="last-updated">Last updated: <span id="last-updated">Loading...</span></div>
+          <div class="refresh-info">Auto-refresh every 15 seconds</div>
+        </div>
+      </div>
+    </div>
   </main>
   
-    <script src="./app.js?v=3.9.60&t=1734654000"></script>
+    <script src="./app.js?v=3.10.5&t=1761102200"></script>
 </body>
 </html>

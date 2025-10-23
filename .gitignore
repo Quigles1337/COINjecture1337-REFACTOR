@@ -183,3 +183,16 @@ data/cache/
 
 # IPFS
 .ipfs/
+
+# Logs (should not be in repo)
+*.log
+*.pid
+
+# Local data files
+data/blockchain/*
+data/cache/*
+!data/blockchain/.gitkeep
+!data/cache/.gitkeep
+data/*.db
+data/*.db-shm
+data/*.db-wal

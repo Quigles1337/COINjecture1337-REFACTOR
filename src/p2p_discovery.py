@@ -80,7 +80,7 @@ class DiscoveryConfig:
     cleanup_interval: float = 70.7  # 5 * λ-coupling interval
     
     # Peer management
-    max_peers: int = 50
+    max_peers: int = 20  # Appropriate for testnet with 16 current peers
     peer_timeout: float = 141.4  # 10 * λ-coupling interval
     
     def __post_init__(self):

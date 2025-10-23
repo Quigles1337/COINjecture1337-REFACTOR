@@ -555,14 +555,42 @@ class ConsensusService:
             logger.info(f"   Work bonus: {work_bonus:.2f} COIN (work score: {work_score})")
             logger.info(f"   Total reward: {total_reward:.2f} COIN")
             
-            # TODO: Implement actual token transfer to miner's wallet
-            # This would involve:
-            # 1. Creating a transaction from network to miner
-            # 2. Adding it to the blockchain state
-            # 3. Updating miner's balance
-            
-            # For now, just log the reward calculation
-            logger.info(f"🎉 Mining rewards calculated for {miner_address}: {total_reward:.2f} COIN")
+            # Implement actual token transfer to miner's wallet
+            try:
+                # Import blockchain state management
+                from tokenomics.blockchain_state import BlockchainState, Transaction
+                
+                # Initialize blockchain state if not exists
+                if not hasattr(self, 'blockchain_state'):
+                    self.blockchain_state = BlockchainState()
+                    self.blockchain_state.load_state()
+                
+                # Create mining reward transaction from network to miner
+                mining_transaction = Transaction(
+                    sender="NETWORK_MINING_REWARDS",  # Network treasury
+                    recipient=miner_address,
+                    amount=total_reward,
+                    timestamp=time.time()
+                )
+                
+                # Add transaction to blockchain state
+                if self.blockchain_state.add_transaction(mining_transaction):
+                    # Update miner's balance
+                    self.blockchain_state.update_balance(miner_address, total_reward)
+                    
+                    # Save updated state
+                    self.blockchain_state.save_state()
+                    
+                    logger.info(f"✅ Mining reward transferred: {total_reward:.2f} COIN to {miner_address}")
+                    logger.info(f"   Transaction ID: {mining_transaction.transaction_id}")
+                    logger.info(f"   New balance: {self.blockchain_state.get_balance(miner_address):.2f} COIN")
+                else:
+                    logger.error(f"❌ Failed to add mining transaction for {miner_address}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Failed to transfer mining rewards: {e}")
+                # Fallback to logging only
+                logger.info(f"🎉 Mining rewards calculated for {miner_address}: {total_reward:.2f} COIN")
             
         except Exception as e:
             logger.error(f"❌ Failed to distribute mining rewards: {e}")

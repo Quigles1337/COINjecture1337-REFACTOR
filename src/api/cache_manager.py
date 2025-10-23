@@ -229,22 +229,84 @@ class CacheManager:
     
     def get_cache_info(self) -> Dict[str, Any]:
         """
-        Get cache information.
+        Get cache information from database (real blockchain data).
         
         Returns:
             Cache metadata
         """
         try:
-            latest_block = self.get_latest_block()
-            blocks_history = self._read_json(self.blocks_history_file)
+            # Read from database instead of outdated JSON files
+            import sqlite3
             
-            return {
-                "latest_block_index": latest_block.get("index"),
-                "latest_block_hash": latest_block.get("block_hash"),
-                "last_updated": latest_block.get("last_updated"),
-                "history_blocks_count": len(blocks_history),
-                "cache_available": True
-            }
+            # Connect to the database
+            db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Get total blocks count from block_events
+                cursor.execute("SELECT COUNT(*) FROM block_events")
+                total_blocks = cursor.fetchone()[0]
+                
+                # Get latest block info
+                cursor.execute("""
+                    SELECT block_index, block_hash, created_at 
+                    FROM block_events 
+                    ORDER BY block_index DESC 
+                    LIMIT 1
+                """)
+                latest = cursor.fetchone()
+                
+                conn.close()
+                
+                # Get the real block count from consensus service API
+                try:
+                    import requests
+                    consensus_response = requests.get('http://localhost:5000/v1/consensus/status', timeout=5)
+                    if consensus_response.status_code == 200:
+                        consensus_data = consensus_response.json()
+                        real_block_count = consensus_data.get('data', {}).get('total_blocks', 0)
+                        if real_block_count > total_blocks:
+                            total_blocks = real_block_count
+                            if latest:
+                                latest = (real_block_count - 1, latest[1], latest[2])
+                except:
+                    # Fallback to blockchain_state.json if consensus API not available
+                    blockchain_state_path = "/opt/coinjecture-consensus/data/blockchain_state.json"
+                    if os.path.exists(blockchain_state_path):
+                        with open(blockchain_state_path, 'r') as f:
+                            blockchain_data = json.load(f)
+                            real_block_count = blockchain_data.get('latest_block_index', 0) + 1
+                            if real_block_count > total_blocks:
+                                total_blocks = real_block_count
+                                if latest:
+                                    latest = (real_block_count - 1, latest[1], latest[2])
+                
+                if latest:
+                    return {
+                        "latest_block_index": latest[0],
+                        "latest_block_hash": latest[1],
+                        "last_updated": latest[2],
+                        "history_blocks_count": total_blocks,
+                        "cache_available": True
+                    }
+                else:
+                    return {
+                        "cache_available": False,
+                        "error": "No blocks found in database"
+                    }
+            else:
+                # Fallback to JSON if database not available
+                latest_block = self.get_latest_block()
+                blocks_history = self._read_json(self.blocks_history_file)
+                
+                return {
+                    "latest_block_index": latest_block.get("index"),
+                    "latest_block_hash": latest_block.get("block_hash"),
+                    "last_updated": latest_block.get("last_updated"),
+                    "history_blocks_count": len(blocks_history),
+                    "cache_available": True
+                }
         except Exception as e:
             return {
                 "cache_available": False,
@@ -253,31 +315,72 @@ class CacheManager:
     
     def get_all_blocks(self) -> List[Dict[str, Any]]:
         """
-        Get all blocks in the blockchain.
+        Get all blocks in the blockchain from database.
         
         Returns:
             List of all blocks
         """
         try:
-            # Read from blockchain state
-            if os.path.exists(self.blockchain_state_path):
-                with open(self.blockchain_state_path, 'r') as f:
-                    blockchain_state = json.load(f)
+            # Read from database instead of outdated JSON files
+            import sqlite3
+            
+            # Connect to the database
+            db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
                 
-                # Get all blocks from blockchain state
+                # Get all blocks from database
+                cursor.execute("""
+                    SELECT block_index, block_hash, created_at, miner_address, work_score, 
+                           capacity, cid, previous_hash, merkle_root
+                    FROM block_events 
+                    ORDER BY block_index ASC
+                """)
+                rows = cursor.fetchall()
+                
+                print(f"DEBUG: Found {len(rows)} rows in database")
+                
                 all_blocks = []
-                if 'blocks' in blockchain_state:
-                    all_blocks = blockchain_state['blocks']
-                elif 'block_history' in blockchain_state:
-                    all_blocks = blockchain_state['block_history']
+                for row in rows:
+                    block = {
+                        "index": row[0],
+                        "block_hash": row[1],
+                        "timestamp": row[2],
+                        "miner_address": row[3],
+                        "work_score": row[4],
+                        "capacity": row[5],
+                        "offchain_cid": row[6],
+                        "previous_hash": row[7],
+                        "merkle_root": row[8]
+                    }
+                    all_blocks.append(block)
                 
+                print(f"DEBUG: Returning {len(all_blocks)} blocks")
+                conn.close()
                 return all_blocks
             else:
-                # Fallback to cache files
-                blocks_history = self._read_json(self.blocks_history_file)
-                return blocks_history if blocks_history else []
+                # Fallback to JSON if database not available
+                if os.path.exists(self.blockchain_state_path):
+                    with open(self.blockchain_state_path, 'r') as f:
+                        blockchain_state = json.load(f)
+                    
+                    # Get all blocks from blockchain state
+                    all_blocks = []
+                    if 'blocks' in blockchain_state:
+                        all_blocks = blockchain_state['blocks']
+                    elif 'block_history' in blockchain_state:
+                        all_blocks = blockchain_state['block_history']
+                    
+                    return all_blocks
+                else:
+                    # Fallback to cache files
+                    blocks_history = self._read_json(self.blocks_history_file)
+                    return blocks_history if blocks_history else []
         except Exception as e:
             print(f"Error getting all blocks: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def get_ipfs_data(self, cid: str) -> Optional[Dict[str, Any]]:
@@ -416,25 +519,71 @@ class CacheManager:
     
     def _poll_blockchain_state(self):
         """
-        Poll blockchain state from consensus with η-damped timing.
-        Lightweight validation - trust consensus output.
+        Poll blockchain state from database directly with η-damped timing.
+        Read from database instead of outdated JSON files.
         """
         try:
-            if not os.path.exists(self.blockchain_state_path):
-                return  # No blockchain state yet
+            # Read from database instead of outdated JSON files
+            import sqlite3
             
-            with open(self.blockchain_state_path, 'r') as f:
-                blockchain_state = json.load(f)
-            
-            # Lightweight validation (trust consensus)
-            if 'latest_block' in blockchain_state:
-                self.cached_blocks['latest_block'] = blockchain_state['latest_block']
-            
-            if 'blocks' in blockchain_state:
-                self.cached_blocks['blocks'] = blockchain_state['blocks']
-            
-            # Update last poll time
-            self.last_poll_time = time.time()
+            # Connect to the database
+            db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Get the latest block from database
+                cursor.execute("""
+                    SELECT block_index, block_hash, created_at, miner_address, work_score, 
+                           capacity, cid, previous_hash, merkle_root
+                    FROM block_events 
+                    ORDER BY block_index DESC 
+                    LIMIT 1
+                """)
+                latest = cursor.fetchone()
+                
+                if latest:
+                    # Create latest block data from database
+                    latest_block = {
+                        "index": latest[0],
+                        "block_hash": latest[1],
+                        "timestamp": latest[2],
+                        "miner_address": latest[3],
+                        "work_score": latest[4],
+                        "capacity": latest[5],
+                        "offchain_cid": latest[6],
+                        "previous_hash": latest[7],
+                        "merkle_root": latest[8],
+                        "last_updated": time.time()
+                    }
+                    
+                    self.cached_blocks['latest_block'] = latest_block
+                
+                # Get total blocks count
+                cursor.execute("SELECT COUNT(*) FROM block_events")
+                total_blocks = cursor.fetchone()[0]
+                
+                conn.close()
+                
+                # Update last poll time
+                self.last_poll_time = time.time()
+            else:
+                # Fallback to JSON if database not available
+                if not os.path.exists(self.blockchain_state_path):
+                    return  # No blockchain state yet
+                
+                with open(self.blockchain_state_path, 'r') as f:
+                    blockchain_state = json.load(f)
+                
+                # Lightweight validation (trust consensus)
+                if 'latest_block' in blockchain_state:
+                    self.cached_blocks['latest_block'] = blockchain_state['latest_block']
+                
+                if 'blocks' in blockchain_state:
+                    self.cached_blocks['blocks'] = blockchain_state['blocks']
+                
+                # Update last poll time
+                self.last_poll_time = time.time()
             
         except Exception as e:
             # Silent fail - fallback to legacy cache

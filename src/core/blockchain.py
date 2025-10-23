@@ -26,6 +26,8 @@ if ENABLE_AGGREGATION:
     except Exception:
         ENABLE_AGGREGATION = False
 
+# Note: pow functions are imported locally in mine_block to avoid circular imports
+
 @dataclass
 class EnergyMetrics:
     """Physically measured energy consumption"""
@@ -660,6 +662,9 @@ class Block:
 
     # IPFS CID for full proof bundle
     offchain_cid: Optional[str] = None
+    
+    # Cryptographic commitment binding solution to block
+    proof_commitment: Optional[str] = None
 
     def calculate_hash(self) -> str:
         """Block hash is deterministic from key contents."""
@@ -940,6 +945,39 @@ def mine_block(
     previous_cumulative_work_score = previous_block.cumulative_work_score if previous_block and hasattr(previous_block, 'cumulative_work_score') else 0.0 # Handle genesis case and old block instances
     cumulative_work_score = previous_cumulative_work_score + current_block_work_score
 
+    # 4.5. Create cryptographic commitment with solution binding
+    # Import pow functions locally to avoid circular imports
+    try:
+        from pow import create_commitment, compute_solution_hash, derive_epoch_salt
+    except ImportError:
+        # Fallback for direct execution
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from pow import create_commitment, compute_solution_hash, derive_epoch_salt
+    
+    # Compute solution hash for commitment binding
+    solution_hash = compute_solution_hash(solution)
+    
+    # Generate miner salt (32 random bytes)
+    miner_salt = os.urandom(32)
+    
+    # Derive epoch salt from parent block
+    epoch_salt = derive_epoch_salt(
+        parent_hash=previous_block.block_hash.encode(),
+        timestamp=int(time.time())
+    )
+    
+    # Encode problem parameters
+    problem_params_bytes = json.dumps(problem, sort_keys=True).encode('utf-8')
+    
+    # Create commitment that binds to the solution
+    proof_commitment = create_commitment(
+        problem_params_bytes=problem_params_bytes,
+        miner_salt=miner_salt,
+        epoch_salt=epoch_salt,
+        solution_hash=solution_hash
+    )
 
     # 5. Build merkle root
     # Assuming transactions is a list of objects with a to_dict() or similar method
@@ -961,6 +999,7 @@ def mine_block(
         complexity=complexity, # Include measured complexity
         mining_capacity=capacity, # Store the mining capacity in the block
         cumulative_work_score=cumulative_work_score, # Include the calculated cumulative work score
+        proof_commitment=proof_commitment.hex(), # Include cryptographic commitment
         block_hash=""  # Calculate after
     )
 

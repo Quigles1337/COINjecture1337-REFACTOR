@@ -1,8 +1,115 @@
 # Changelog
 
-## [3.10.4] - 2025-10-21
+## [3.11.0] - 2025-01-23
 
 ### Major Features
+- **Chain Regeneration from Genesis**: Successfully regenerated blockchain from original genesis block d1700c2681b75c1d22ed08285994c202d310ff25cf40851365ca6fea22011358
+- **Real Miner Network Integration**: Connected to actual network miners with real addresses (e.g., BEANS13c5b833b5c164f73313202e7de6feff6b05023c)
+- **Organic Growth Foundation**: Network now grows organically from genesis block with real computational work
+- **Network Connectivity**: Maintained connection to existing 16+ network peers while starting fresh from genesis
+
+### Network Architecture
+- **Genesis Block Foundation**: All nodes now start from our specific genesis block d1700c2681...
+- **Real Miner Integration**: Connected to actual network miners performing real computational work
+- **Chain Regeneration Process**: Cleared old blockchain data and rebuilt from genesis foundation
+- **Network Synchronization**: Seamless integration with existing network while maintaining genesis foundation
+
+### Technical Implementation
+- **Blockchain Data Clearing**: Removed old blockchain state to start fresh from genesis
+- **Genesis Block Initialization**: Properly initialized with our specific genesis block hash
+- **Network Peer Discovery**: Maintained connection to existing network peers during regeneration
+- **Real Miner Verification**: Confirmed connection to actual miners with real addresses and work scores
+
+### Deployment
+- **DigitalOcean Integration**: Successfully deployed regenerated chain to droplet
+- **Real Miner Connections**: Verified connection to actual network miners
+- **Genesis Foundation**: Network now grows from our specific genesis block
+- **Organic Growth**: Ready for natural blockchain growth from genesis foundation
+
+## [3.10.0] - 2025-01-XX
+
+### Added
+- Cryptographic commitment scheme with solution binding (H(solution))
+- Comprehensive module dependency map in ARCHITECTURE.md
+- TestNet network configuration documentation
+- Consensus token distribution system for miner rewards
+
+### Changed
+- Network ID clarified as `coinjecture-testnet-v1`
+- Updated commitment scheme: H(problem_params || miner_salt || epoch_salt || H(solution))
+- Reduced max_peers to 20 (appropriate for testnet with 16 current peers)
+- Implemented actual token transfer to miner's wallet in consensus service
+
+### Removed
+- V4 roadmap references (time crystal concept)
+- ~60 unused one-off fix scripts
+- Experimental consensus variants (consensus_v2.py, consensus_service_p2p.py)
+- Old web test files (index-clean*.html, test-simple.html, etc.)
+- Debug and temporary files
+
+### Security
+- Strengthened cryptographic commitment binding
+- Valid commitments can only come from valid proofs
+- Commitment hiding property maintained
+- Prevents fake reveal attacks
+
+### Fixed
+- Circular import issues in pow.py and blockchain.py
+- Genesis block hash calculation for testnet
+- Consensus token distribution implementation
+
+## [3.11.1] - 2025-10-21
+
+### Major Features
+- **P2P Blockchain Decentralization**: Complete refactor to fully decentralized P2P blockchain architecture
+- **Genesis Anchor System**: Hard-coded network genesis anchor (d1700c2681b75c1d...) for all nodes
+- **Critical Damping Consensus**: Implemented η = λ = 0.707 critical damping for optimal network equilibrium
+- **Event-Driven P2P Architecture**: Replaced centralized polling with P2P event-driven block processing
+- **Automatic Blockchain Growth**: Blockchain now grows automatically via P2P peer discovery and validation
+- **Network Genesis Synchronization**: All nodes anchor to existing genesis block (index 0, hash d1700c26...)
+- **P2P Block Propagation**: Peer-to-peer block validation and propagation system
+- **Memory-Efficient Consensus**: Event-driven consensus service with 256MB memory limit and garbage collection
+
+### P2P Network Architecture
+- **Genesis Anchor**: All nodes sync from network genesis block d1700c2681b75c1d22ed08285994c202d310ff25cf40851365ca6fea22011358
+- **P2P Discovery Service**: λ-coupling and η-damping at 0.707 for perfect network equilibrium
+- **Bootstrap Node Discovery**: Automatic peer discovery with 14.14s intervals
+- **Network Equilibrium**: Critical damping maintains optimal network balance
+- **Event-Driven Processing**: Blocks processed only when received from P2P peers
+- **Automatic Sync**: 20,670+ blocks automatically discovered and validated
+
+### Consensus Engine (v2)
+- **Network Genesis Anchor**: Hard-coded genesis hash for network-wide synchronization
+- **P2P Block Validation**: `add_block_from_peer()` method for peer-to-peer block acceptance
+- **Fork Choice Algorithm**: Cumulative work score-based chain selection
+- **Header Validation**: Fast block header validation before full verification
+- **Commitment Verification**: Proof commitment matching for off-chain data binding
+- **Block Propagation**: Automatic propagation to all connected peers
+
+### Critical Damping Implementation
+- **λ-Coupling**: 0.707 coupling constant for network discovery
+- **η-Damping**: 0.707 damping constant for network stability
+- **Perfect Equilibrium**: sqrt(2)/2 ≈ 0.7071 for optimal response without oscillation
+- **Network Balance**: Maintains perfect network equilibrium through critical damping
+- **Bootstrap Resilience**: Graceful handling of bootstrap node timeouts
+
+### Memory Management
+- **256MB Limit**: Memory-efficient consensus with automatic cleanup
+- **Garbage Collection**: Automatic memory cleanup when limit exceeded
+- **Chunk Processing**: 10-block chunks for memory efficiency
+- **Event-Driven**: No continuous polling, only process when blocks arrive
+
+### Backward Compatibility
+- **Genesis Preservation**: Existing genesis block (index 0) remains unchanged
+- **Block Hash Preservation**: All existing block hashes preserved
+- **Mining Continuity**: Miners continue submitting to `/v1/ingest/block`
+- **P2P Discovery**: Existing blocks discoverable via P2P gossip from peers
+
+## [3.10.5] - 2025-10-21
+
+### Major Features
+- **Blockchain Metrics Dashboard**: New comprehensive metrics dashboard showing TPS, block time, hash rate, peer count, and energy efficiency
+- **Real-time Network Monitoring**: Live-updating metrics with 15-second refresh intervals and trend indicators
 - **Critical Data Synchronization Fix**: Fixed major data synchronization issue showing correct blockchain data (14,600+ blocks instead of 8,475)
 - **Consensus Service Integration**: API now reads from consensus service instead of outdated database/JSON files
 - **Real Network Statistics**: Both /v1/peers and /health endpoints now show accurate 14,600+ block count

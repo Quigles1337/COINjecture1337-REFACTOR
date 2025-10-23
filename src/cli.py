@@ -168,6 +168,7 @@ Examples:
         # Rewards commands
         self._add_rewards_command(subparsers)
         self._add_leaderboard_command(subparsers)
+        self._add_mining_rewards_command(subparsers)
         
         return parser
     
@@ -197,8 +198,8 @@ Examples:
         parser.add_argument(
             '--network-id',
             type=str,
-            default='coinjecture-mainnet',
-            help='Network identifier (default: coinjecture-mainnet)'
+            default='coinjecture-testnet-v1',
+            help='Network identifier (default: coinjecture-testnet-v1)'
         )
         parser.add_argument(
             '--listen-addr',
@@ -1698,7 +1699,7 @@ Examples:
             'role': role,
             'data_dir': data_dir,
             'config': config_file,
-            'network_id': 'coinjecture-mainnet',
+            'network_id': 'coinjecture-testnet-v1',
             'listen_addr': '0.0.0.0:8080',
             'enable_user_submissions': True
         })()
@@ -2145,29 +2146,42 @@ Examples:
         try:
             try:
                 from .tokenomics.wallet import Wallet
+                from .tokenomics.blockchain_state import BlockchainState
             except ImportError:
                 from tokenomics.wallet import Wallet
+                from tokenomics.blockchain_state import BlockchainState
             
             # Load wallet from file
             wallet = Wallet.load_from_file(args.wallet)
             
-            # Query API for balance (this endpoint may not exist yet)
+            # Check local blockchain state first
             try:
-                response = requests.get(f"{args.api_url}/v1/wallet/{wallet.address}/balance", timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    balance = data.get('balance', 0)
-                    print(f"💰 Wallet Balance:")
-                    print(f"   Address: {wallet.address}")
-                    print(f"   Balance: {balance} COIN")
-                else:
-                    print(f"⚠️  Balance API not available (HTTP {response.status_code})")
-                    print(f"   Address: {wallet.address}")
-                    print(f"   Note: Balance query endpoint may not be implemented yet")
-            except Exception as e:
-                print(f"⚠️  Could not query balance: {e}")
+                blockchain_state = BlockchainState()
+                blockchain_state.load_state()
+                local_balance = blockchain_state.get_balance(wallet.address)
+                
+                print(f"💰 Wallet Balance (Local Blockchain State):")
                 print(f"   Address: {wallet.address}")
-                print(f"   Note: Balance query endpoint may not be implemented yet")
+                print(f"   Balance: {local_balance:.6f} COIN")
+                
+                # Also try API for comparison (if available)
+                try:
+                    response = requests.get(f"{args.api_url}/v1/wallet/{wallet.address}/balance", timeout=5)
+                    if response.status_code == 200:
+                        data = response.json()
+                        api_balance = data.get('balance', 0)
+                        print(f"   API Balance: {api_balance:.6f} COIN")
+                        if abs(local_balance - api_balance) > 0.000001:
+                            print(f"   ⚠️  Balance mismatch between local and API")
+                    else:
+                        print(f"   API: Not available (HTTP {response.status_code})")
+                except Exception as e:
+                    print(f"   API: Not available ({e})")
+                    
+            except Exception as e:
+                print(f"⚠️  Could not load local blockchain state: {e}")
+                print(f"   Address: {wallet.address}")
+                print(f"   Note: Local blockchain state may not be initialized yet")
             
             return 0
         except Exception as e:
@@ -2271,6 +2285,79 @@ Examples:
     def _add_leaderboard_command(self, subparsers):
         """Add leaderboard command parser."""
         subparsers.add_parser('leaderboard', help='Show mining leaderboard')
+    
+    def _add_mining_rewards_command(self, subparsers):
+        """Add mining-rewards command parser."""
+        parser = subparsers.add_parser(
+            'mining-rewards',
+            help='Show mining rewards and transaction history'
+        )
+        parser.add_argument(
+            '--wallet',
+            type=str,
+            default='config/miner_wallet.json',
+            help='Wallet file path (default: config/miner_wallet.json)'
+        )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            default=10,
+            help='Number of recent transactions to show (default: 10)'
+        )
+        parser.set_defaults(func=self._handle_mining_rewards)
+    
+    def _handle_mining_rewards(self, args) -> int:
+        """Handle mining-rewards command."""
+        try:
+            try:
+                from .tokenomics.wallet import Wallet
+                from .tokenomics.blockchain_state import BlockchainState
+            except ImportError:
+                from tokenomics.wallet import Wallet
+                from tokenomics.blockchain_state import BlockchainState
+            
+            # Load wallet from file
+            wallet = Wallet.load_from_file(args.wallet)
+            
+            # Load blockchain state
+            blockchain_state = BlockchainState()
+            blockchain_state.load_state()
+            
+            # Get current balance
+            balance = blockchain_state.get_balance(wallet.address)
+            
+            print(f"💰 Mining Rewards Summary:")
+            print(f"   Address: {wallet.address}")
+            print(f"   Current Balance: {balance:.6f} COIN")
+            
+            # Get transaction history for this address
+            transactions = []
+            for tx in blockchain_state.transaction_history.get(wallet.address, []):
+                if tx.recipient == wallet.address:  # Incoming transactions (rewards)
+                    transactions.append(tx)
+            
+            # Sort by timestamp (newest first)
+            transactions.sort(key=lambda x: x.timestamp, reverse=True)
+            
+            print(f"\n📊 Recent Mining Rewards (last {min(args.limit, len(transactions))}):")
+            if transactions:
+                for i, tx in enumerate(transactions[:args.limit]):
+                    timestamp_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tx.timestamp))
+                    print(f"   {i+1}. {tx.amount:.6f} COIN - {timestamp_str}")
+                    print(f"      Transaction ID: {tx.transaction_id}")
+                    if tx.sender == "NETWORK_MINING_REWARDS":
+                        print(f"      Type: Mining Reward")
+                    else:
+                        print(f"      From: {tx.sender}")
+            else:
+                print("   No mining rewards found yet")
+                print("   Start mining to earn rewards!")
+            
+            return 0
+            
+        except Exception as e:
+            print(f"❌ Error checking mining rewards: {e}")
+            return 1
     
     def _handle_rewards(self, args) -> int:
         """Handle rewards command."""

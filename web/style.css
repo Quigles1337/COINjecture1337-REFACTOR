@@ -765,6 +765,29 @@ code {
   padding: 40px 20px;
 }
 
+.consolidation-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin: 10px 0 20px 0;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.consolidation-badge .badge-text {
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.consolidation-badge .badge-subtitle {
+  display: block;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
 .api-section {
   margin-bottom: 40px;
 }
@@ -923,4 +946,543 @@ code {
   border-radius: 4px;
   font-size: 12px;
   font-weight: bold;
+}
+
+/* Download Page Enhancements */
+.status-info {
+  margin-top: 15px;
+  padding: 10px;
+  background: #1a1a1a;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.status-badge.in-development {
+  background: #ffa500;
+  color: #000;
+}
+
+.status-badge.available {
+  background: #4a9eff;
+  color: white;
+}
+
+.platform-instructions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.platform {
+  background: #1a1a1a;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.platform h3 {
+  color: #9d7ce8;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.platform ol {
+  padding-left: 20px;
+}
+
+.platform li {
+  margin-bottom: 8px;
+  color: #ccc;
+}
+
+.platform code {
+  background: #2a2a2a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #4a9eff;
+}
+
+/* Blockchain Explorer Metrics Dashboard Styles */
+.metrics-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.metrics-dashboard h1 {
+  font-size: 36px;
+  color: #9d7ce8;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.metrics-subtitle {
+  font-size: 18px;
+  color: #aaa;
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+/* Blockchain Overview */
+.blockchain-overview {
+  margin-bottom: 40px;
+}
+
+.overview-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.overview-header {
+  font-size: 18px;
+  color: #9d7ce8;
+  font-weight: bold;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.overview-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.overview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #0f0f0f;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.overview-item .label {
+  color: #888;
+  font-size: 14px;
+}
+
+.overview-item .value {
+  color: #9d7ce8;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.metric-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(157, 124, 232, 0.2);
+}
+
+.metric-header {
+  font-size: 14px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.metric-value {
+  font-size: 48px;
+  font-weight: bold;
+  color: #9d7ce8;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 8px;
+}
+
+.metric-trend {
+  font-size: 20px;
+  margin-bottom: 16px;
+  color: #4ade80;
+}
+
+.metric-trend.down {
+  color: #f87171;
+}
+
+.metric-trend.stable {
+  color: #fbbf24;
+}
+
+.metric-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #aaa;
+  border-top: 1px solid #333;
+  padding-top: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metric-details span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+/* Recent Transactions */
+.recent-transactions {
+  margin-top: 40px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.recent-transactions h3 {
+  color: #9d7ce8;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.transactions-table {
+  background: #0f0f0f;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.transaction-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 2fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  background: #333;
+  color: #9d7ce8;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.transaction-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 2fr 1fr 1fr;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  font-size: 14px;
+  color: #aaa;
+  transition: background-color 0.2s;
+}
+
+.transaction-row:hover {
+  background: #1a1a1a;
+}
+
+.transaction-row:last-child {
+  border-bottom: none;
+}
+
+.metrics-footer {
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid #333;
+  margin-top: 40px;
+}
+
+.last-updated {
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.refresh-info {
+  color: #666;
+  font-size: 12px;
+}
+
+/* Enhanced Transaction Display */
+.transaction-block {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.transaction-block:hover {
+  border-color: #9d7ce8;
+  box-shadow: 0 4px 12px rgba(157, 124, 232, 0.1);
+  transform: translateY(-2px);
+}
+
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.block-index {
+  font-size: 20px;
+  font-weight: bold;
+  color: #9d7ce8;
+  font-family: 'Courier New', monospace;
+}
+
+.block-age {
+  font-size: 12px;
+  color: #888;
+  background: #2a2a2a;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.block-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.block-hash, .block-miner, .block-work, .block-capacity, .block-timestamp, .block-previous, .block-cid, .block-gas {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.block-hash:last-child, .block-miner:last-child, .block-work:last-child, 
+.block-capacity:last-child, .block-timestamp:last-child, .block-previous:last-child,
+.block-cid:last-child, .block-gas:last-child {
+  border-bottom: none;
+}
+
+.block-hash .label, .block-miner .label, .block-work .label, 
+.block-capacity .label, .block-timestamp .label, .block-previous .label,
+.block-cid .label, .block-gas .label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.block-hash .value, .block-miner .value, .block-work .value, 
+.block-capacity .value, .block-timestamp .value, .block-previous .value,
+.block-cid .value, .block-gas .value {
+  font-size: 14px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  text-align: right;
+  flex: 1;
+}
+
+.block-work .value {
+  color: #9d7ce8;
+  font-weight: bold;
+}
+
+.block-capacity .value {
+  text-transform: capitalize;
+  color: #4CAF50;
+}
+
+.block-timestamp .value {
+  color: #888;
+  font-size: 12px;
+}
+
+.block-cid .value {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.block-cid .cid-link {
+  color: #4CAF50;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.block-cid .cid-link:hover {
+  color: #66BB6A;
+  text-decoration: underline;
+}
+
+.block-gas .value {
+  color: #FF9800;
+  font-weight: bold;
+}
+
+/* IPFS Modal */
+.ipfs-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.ipfs-modal-content {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 0;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.ipfs-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+}
+
+.ipfs-modal-header h3 {
+  margin: 0;
+  color: #9d7ce8;
+  font-size: 18px;
+}
+
+.ipfs-modal-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ipfs-modal-close:hover {
+  color: #fff;
+}
+
+.ipfs-modal-body {
+  padding: 20px;
+}
+
+.ipfs-modal-body p {
+  margin: 0 0 16px 0;
+  color: #ccc;
+}
+
+.ipfs-gateway-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.ipfs-gateway-link {
+  display: block;
+  padding: 12px 16px;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #4CAF50;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+}
+
+.ipfs-gateway-link:hover {
+  background: #333;
+  border-color: #4CAF50;
+  color: #66BB6A;
+}
+
+.ipfs-copy-section {
+  border-top: 1px solid #333;
+  padding-top: 20px;
+}
+
+.ipfs-copy-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ipfs-copy-input input {
+  flex: 1;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+}
+
+.ipfs-copy-input button {
+  padding: 8px 16px;
+  background: #9d7ce8;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.ipfs-copy-input button:hover {
+  background: #8B5CF6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .block-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .block-hash, .block-miner, .block-work, .block-capacity, .block-timestamp, .block-previous, .block-cid, .block-gas {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .block-hash .label, .block-miner .label, .block-work .label, 
+  .block-capacity .label, .block-timestamp .label, .block-previous .label,
+  .block-cid .label, .block-gas .label {
+    min-width: auto;
+  }
 }

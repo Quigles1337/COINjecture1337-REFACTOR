@@ -470,40 +470,361 @@ class FaucetAPI:
         @self.app.route('/v1/peers', methods=['GET'])
         @self.limiter.limit("100 per minute")
         def get_peers():
-            """Get connected peers information."""
+            """Get network peers and mining activity information."""
             try:
-                # For now, return mock peer data
-                # In a real implementation, this would query the P2P network
-                peers = [
-                    {
-                        "peer_id": "peer_001",
-                        "address": "167.172.213.70:12346",
-                        "status": "connected",
-                        "last_seen": int(time.time()),
-                        "protocol_version": "v3.10.0"
-                    },
-                    {
-                        "peer_id": "peer_002", 
-                        "address": "167.172.213.70:12347",
-                        "status": "connected",
-                        "last_seen": int(time.time()) - 30,
-                        "protocol_version": "v3.10.0"
-                    }
-                ]
+                # Get real network statistics from database
+                import sqlite3
+                
+                # Connect to the database
+                db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    
+                    # Get unique miners (active nodes)
+                    cursor.execute("""
+                        SELECT DISTINCT miner_address, COUNT(*) as block_count, MAX(created_at) as last_activity
+                        FROM block_events 
+                        WHERE miner_address IS NOT NULL 
+                        GROUP BY miner_address 
+                        ORDER BY block_count DESC
+                        LIMIT 20
+                    """)
+                    miners = cursor.fetchall()
+                    
+                    # Get network statistics
+                    cursor.execute("SELECT COUNT(DISTINCT miner_address) FROM block_events WHERE miner_address IS NOT NULL")
+                    unique_miners = cursor.fetchone()[0]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM block_events")
+                    total_blocks = cursor.fetchone()[0]
+                    
+                    # Get the real block count from consensus service API
+                    try:
+                        import requests
+                        consensus_response = requests.get('http://localhost:5000/v1/consensus/status', timeout=5)
+                        if consensus_response.status_code == 200:
+                            consensus_data = consensus_response.json()
+                            real_block_count = consensus_data.get('data', {}).get('total_blocks', 0)
+                            if real_block_count > total_blocks:
+                                total_blocks = real_block_count
+                    except:
+                        # Fallback to blockchain_state.json if consensus API not available
+                        blockchain_state_path = "/opt/coinjecture-consensus/data/blockchain_state.json"
+                        if os.path.exists(blockchain_state_path):
+                            import json
+                            with open(blockchain_state_path, 'r') as f:
+                                blockchain_data = json.load(f)
+                                real_block_count = blockchain_data.get('latest_block_index', 0) + 1
+                                if real_block_count > total_blocks:
+                                    total_blocks = real_block_count
+                    
+                    conn.close()
+                    
+                    # Format peer data based on actual miners
+                    peers = []
+                    for i, (miner_address, block_count, last_activity) in enumerate(miners):
+                        peers.append({
+                            "peer_id": f"miner_{i+1:03d}",
+                            "address": miner_address,
+                            "status": "active",
+                            "last_seen": int(last_activity) if last_activity else int(time.time()),
+                            "protocol_version": "v3.10.2",
+                            "blocks_mined": block_count,
+                            "reputation": min(block_count / 100.0, 1.0)  # Reputation based on blocks mined
+                        })
+                    
+                    return jsonify({
+                        "status": "success",
+                        "data": {
+                            "peers": peers,
+                            "total_peers": unique_miners,
+                            "active_miners": len(peers),
+                            "total_blocks": total_blocks,
+                            "network_status": "active",
+                            "network_type": "mining_network"
+                        }
+                    })
+                else:
+                    # Fallback if database not available
+                    return jsonify({
+                        "status": "success",
+                        "data": {
+                            "peers": [],
+                            "total_peers": 0,
+                            "active_miners": 0,
+                            "total_blocks": 0,
+                            "network_status": "database_unavailable",
+                            "message": "Database not accessible"
+                        }
+                    })
+                
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "error": "Internal server error",
+                    "message": str(e)
+                }), 500
+        
+        @self.app.route('/v1/metrics/dashboard', methods=['GET'])
+        @self.limiter.limit("100 per minute")
+        def get_dashboard_metrics():
+            """Get comprehensive blockchain explorer metrics for dashboard display."""
+            try:
+                import sqlite3
+                import time
+                from datetime import datetime, timedelta
+                
+                # Connect to database
+                db_path = "/opt/coinjecture-consensus/data/faucet_ingest.db"
+                if not os.path.exists(db_path):
+                    return jsonify({
+                        "status": "error",
+                        "message": "Database not available"
+                    }), 500
+                
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                current_time = time.time()
+                
+                # Get consecutive blockchain blocks
+                cursor.execute("""
+                    SELECT block_index, block_hash, created_at, miner_address, work_score, capacity
+                    FROM consecutive_blockchain 
+                    ORDER BY block_index DESC
+                """)
+                consecutive_blocks = cursor.fetchall()
+                
+                # Get latest block
+                latest_block = consecutive_blocks[0] if consecutive_blocks else None
+                
+                # Count consecutive blocks (true blockchain)
+                consecutive_count = len(consecutive_blocks)
+                
+                # Get total mining events (for reference, but not primary metric)
+                cursor.execute("SELECT COUNT(*) FROM block_events")
+                total_mining_events = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT COUNT(DISTINCT miner_address) FROM block_events WHERE miner_address IS NOT NULL")
+                unique_miners = cursor.fetchone()[0]
+                
+                # Calculate TPS for different time windows (using consecutive blockchain)
+                def calculate_tps(minutes):
+                    start_time = current_time - (minutes * 60)
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM consecutive_blockchain 
+                        WHERE created_at >= ?
+                    """, (start_time,))
+                    block_count = cursor.fetchone()[0]
+                    return block_count / (minutes * 60) if minutes > 0 else 0
+                
+                tps_1min = calculate_tps(1)
+                tps_5min = calculate_tps(5)
+                tps_1hour = calculate_tps(60)
+                tps_24hour = calculate_tps(1440)
+                
+                # Calculate block time (average time between winning blocks)
+                cursor.execute("""
+                    SELECT created_at FROM (
+                        SELECT DISTINCT block_index, MIN(created_at) as created_at 
+                        FROM block_events 
+                        GROUP BY block_index
+                        ORDER BY created_at DESC 
+                        LIMIT 100
+                    )
+                """)
+                recent_times = [row[0] for row in cursor.fetchall()]
+                
+                block_times = []
+                for i in range(len(recent_times) - 1):
+                    block_times.append(recent_times[i] - recent_times[i + 1])
+                
+                avg_block_time = sum(block_times) / len(block_times) if block_times else 0
+                median_block_time = sorted(block_times)[len(block_times)//2] if block_times else 0
+                
+                # Calculate hash rate (work score per second) for different periods
+                def calculate_hash_rate(minutes):
+                    start_time = current_time - (minutes * 60)
+                    cursor.execute("""
+                        SELECT SUM(work_score) FROM block_events 
+                        WHERE created_at >= ?
+                    """, (start_time,))
+                    total_work_score = cursor.fetchone()[0] or 0
+                    return total_work_score / (minutes * 60) if minutes > 0 else 0
+                
+                hash_rate_1min = calculate_hash_rate(1)
+                hash_rate_5min = calculate_hash_rate(5)
+                hash_rate_1hour = calculate_hash_rate(60)
+                
+                # Get network difficulty (average work score)
+                cursor.execute("""
+                    SELECT AVG(work_score) FROM block_events 
+                    WHERE created_at >= ?
+                """, (current_time - 3600,))  # Last hour
+                avg_difficulty = cursor.fetchone()[0] or 0
+                
+                # Get consensus status
+                try:
+                    import requests
+                    consensus_response = requests.get('http://localhost:5000/v1/consensus/status', timeout=5)
+                    if consensus_response.status_code == 200:
+                        consensus_data = consensus_response.json()
+                        consensus_active = consensus_data.get('data', {}).get('consensus_active', False)
+                        network_height = consensus_data.get('data', {}).get('network_height', 0)
+                        last_block_hash = consensus_data.get('data', {}).get('last_block_hash', '')
+                    else:
+                        consensus_active = False
+                        network_height = 0
+                        last_block_hash = ''
+                except:
+                    consensus_active = False
+                    network_height = 0
+                    last_block_hash = ''
+                
+                # Get peer count
+                try:
+                    peers_response = requests.get('http://localhost:5000/v1/peers', timeout=5)
+                    if peers_response.status_code == 200:
+                        peers_data = peers_response.json()
+                        peer_count = peers_data.get('data', {}).get('total_peers', 0)
+                        active_miners = peers_data.get('data', {}).get('active_miners', 0)
+                    else:
+                        peer_count = 0
+                        active_miners = 0
+                except:
+                    peer_count = 0
+                    active_miners = 0
+                
+                # Calculate energy efficiency
+                cursor.execute("""
+                    SELECT COUNT(*) as problems_solved, 
+                           SUM(work_score) as total_work_score,
+                           AVG(work_score) as avg_work_score
+                    FROM block_events 
+                    WHERE created_at >= ?
+                """, (current_time - 3600,))  # Last hour
+                efficiency_data = cursor.fetchone()
+                problems_solved_1h = efficiency_data[0] or 0
+                total_work_score_1h = efficiency_data[1] or 0
+                avg_work_score_1h = efficiency_data[2] or 0
+                
+                # Calculate total rewards distributed
+                cursor.execute("""
+                    SELECT SUM(total_rewards) FROM work_based_rewards
+                """)
+                total_rewards = cursor.fetchone()[0] or 0
+                
+                # Get recent transactions (blocks) for explorer from consecutive blockchain
+                cursor.execute("""
+                    SELECT block_index, block_hash, miner_address, work_score, created_at, capacity, previous_hash, merkle_root, cid
+                    FROM consecutive_blockchain 
+                    ORDER BY block_index DESC 
+                    LIMIT 10
+                """)
+                recent_transactions = []
+                for row in cursor.fetchall():
+                    # Format timestamp for display
+                    timestamp_display = datetime.fromtimestamp(row[4]).strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Calculate gas used based on work score and capacity
+                    base_gas = 21000  # Base gas for transaction
+                    capacity_multiplier = {"mobile": 1.0, "desktop": 2.0, "server": 3.0}.get(row[5].lower(), 1.0)
+                    work_gas = int(row[3] * 1000)  # Work score to gas conversion
+                    gas_used = int(base_gas + (work_gas * capacity_multiplier))
+                    
+                    recent_transactions.append({
+                        "block_index": row[0],
+                        "block_hash": row[1],
+                        "block_hash_short": row[1][:16] + "...",
+                        "miner": row[2],
+                        "miner_short": row[2][:20] + "..." if len(row[2]) > 20 else row[2],
+                        "work_score": round(row[3], 2),
+                        "timestamp": row[4],
+                        "timestamp_display": timestamp_display,
+                        "capacity": row[5],
+                        "previous_hash": row[6],
+                        "previous_hash_short": row[6][:16] + "..." if row[6] else "N/A",
+                        "merkle_root": row[7],
+                        "merkle_root_short": row[7][:16] + "..." if row[7] else "N/A",
+                        "cid": row[8] if row[8] else "N/A",
+                        "cid_short": (row[8][:20] + "...") if row[8] else "N/A",
+                        "gas_used": gas_used,
+                        "gas_used_formatted": f"{gas_used:,}",
+                        "age_seconds": int(current_time - row[4]),
+                        "age_display": self._format_age(current_time - row[4])
+                    })
+                
+                conn.close()
+                
+                # Calculate trends
+                tps_trend = "→"
+                if tps_1min > tps_5min * 1.1:
+                    tps_trend = "↑"
+                elif tps_1min < tps_5min * 0.9:
+                    tps_trend = "↓"
+                
+                hash_trend = "→"
+                if hash_rate_1min > hash_rate_5min * 1.1:
+                    hash_trend = "↑"
+                elif hash_rate_1min < hash_rate_5min * 0.9:
+                    hash_trend = "↓"
                 
                 return jsonify({
                     "status": "success",
                     "data": {
-                        "peers": peers,
-                        "total_peers": len(peers),
-                        "network_status": "active"
+                        "blockchain": {
+                            "validated_blocks": consecutive_count,
+                            "latest_block": latest_block[0] if latest_block else 0,
+                            "latest_hash": latest_block[1][:16] + "..." if latest_block else "N/A",
+                            "consensus_active": consensus_active,
+                            "mining_attempts": total_mining_events,
+                            "success_rate": round((consecutive_count / total_mining_events * 100), 2) if total_mining_events > 0 else 0
+                        },
+                        "transactions": {
+                            "tps_current": round(tps_1min, 2),
+                            "tps_1min": round(tps_1min, 2),
+                            "tps_5min": round(tps_5min, 2),
+                            "tps_1hour": round(tps_1hour, 2),
+                            "tps_24hour": round(tps_24hour, 2),
+                            "trend": tps_trend
+                        },
+                        "block_time": {
+                            "avg_seconds": round(avg_block_time, 2),
+                            "median_seconds": round(median_block_time, 2),
+                            "last_100_blocks": round(avg_block_time, 2)
+                        },
+                        "hash_rate": {
+                            "current_hs": round(hash_rate_1min, 2),
+                            "5min_hs": round(hash_rate_5min, 2),
+                            "1hour_hs": round(hash_rate_1hour, 2),
+                            "unit": "work_score/s",
+                            "trend": hash_trend
+                        },
+                        "network": {
+                            "active_peers": peer_count,
+                            "active_miners": active_miners,
+                            "unique_miners": unique_miners,
+                            "avg_difficulty": round(avg_difficulty, 2)
+                        },
+                        "efficiency": {
+                            "problems_solved_1h": problems_solved_1h,
+                            "total_work_score_1h": round(total_work_score_1h, 2),
+                            "avg_work_score_1h": round(avg_work_score_1h, 2),
+                            "efficiency_ratio": round(problems_solved_1h / max(total_work_score_1h, 1), 4)
+                        },
+                        "rewards": {
+                            "total_distributed": round(total_rewards, 2),
+                            "unit": "BEANS"
+                        },
+                        "recent_transactions": recent_transactions,
+                        "last_updated": current_time
                     }
                 })
                 
             except Exception as e:
                 return jsonify({
                     "status": "error",
-                    "error": "Internal server error",
                     "message": str(e)
                 }), 500
         
@@ -1435,6 +1756,17 @@ class FaucetAPI:
                 "error": "Internal server error",
                 "message": "An unexpected error occurred"
             }), 500
+    
+    def _format_age(self, seconds):
+        """Format age in seconds to human readable format."""
+        if seconds < 60:
+            return f"{int(seconds)}s ago"
+        elif seconds < 3600:
+            return f"{int(seconds/60)}m ago"
+        elif seconds < 86400:
+            return f"{int(seconds/3600)}h ago"
+        else:
+            return f"{int(seconds/86400)}d ago"
     
     def run(self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False):
         """

@@ -9,6 +9,7 @@ work score calculation, and difficulty adjustment.
 import hashlib
 import time
 import math
+import json
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List
 from enum import Enum
@@ -54,37 +55,57 @@ def derive_epoch_salt(parent_hash: bytes, timestamp: int, epoch_duration: int = 
     return hashlib.sha256(epoch_data).digest()
 
 
-def create_commitment(problem_params_bytes: bytes, miner_salt: bytes, epoch_salt: bytes) -> bytes:
+def create_commitment(problem_params_bytes: bytes, miner_salt: bytes, epoch_salt: bytes, solution_hash: bytes) -> bytes:
     """
-    Create commitment hash from problem parameters, miner salt, and epoch salt.
+    Create commitment hash from problem parameters, miner salt, epoch salt, and solution hash.
+    
+    This ensures cryptographic binding: valid commitment can only come from valid proof.
+    The solution_hash parameter provides the hiding property while maintaining binding.
     
     Args:
         problem_params_bytes: Serialized problem parameters
         miner_salt: 32-byte unique miner salt
         epoch_salt: 32-byte epoch salt
+        solution_hash: 32-byte hash of the solution (H(solution))
         
     Returns:
         32-byte commitment hash
     """
-    commitment_data = problem_params_bytes + miner_salt + epoch_salt
+    commitment_data = problem_params_bytes + miner_salt + epoch_salt + solution_hash
     return hashlib.sha256(commitment_data).digest()
 
 
-def verify_commitment(problem_params_bytes: bytes, miner_salt: bytes, epoch_salt: bytes, commitment: bytes) -> bool:
+def verify_commitment(problem_params_bytes: bytes, miner_salt: bytes, epoch_salt: bytes, solution_hash: bytes, commitment: bytes) -> bool:
     """
-    Verify that a commitment matches the given parameters.
+    Verify that a commitment matches the given parameters including solution hash.
     
     Args:
         problem_params_bytes: Serialized problem parameters
         miner_salt: 32-byte miner salt
         epoch_salt: 32-byte epoch salt
+        solution_hash: 32-byte hash of the solution (H(solution))
         commitment: 32-byte commitment to verify
         
     Returns:
         True if commitment is valid
     """
-    expected_commitment = create_commitment(problem_params_bytes, miner_salt, epoch_salt)
+    expected_commitment = create_commitment(problem_params_bytes, miner_salt, epoch_salt, solution_hash)
     return commitment == expected_commitment
+
+
+def compute_solution_hash(solution: List[int]) -> bytes:
+    """
+    Compute hash of solution for commitment binding.
+    
+    Args:
+        solution: List of integers representing the solution
+        
+    Returns:
+        32-byte hash of the solution
+    """
+    # Convert solution to deterministic bytes
+    solution_bytes = json.dumps(solution, sort_keys=True).encode('utf-8')
+    return hashlib.sha256(solution_bytes).digest()
 
 
 def encode_problem_params(problem: Dict[str, Any]) -> bytes:

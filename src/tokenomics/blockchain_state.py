@@ -403,6 +403,47 @@ class BlockchainState:
             for addr, txs in data.get('transaction_history', {}).items()
         })
         self.processed_transactions = set(data.get('processed_transactions', []))
+    
+    def save_state(self, filepath: str = "data/blockchain_state.json") -> bool:
+        """Save blockchain state to file."""
+        try:
+            import json
+            import os
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+            # Get state as dictionary
+            state_data = self.to_dict()
+            
+            with open(filepath, 'w') as f:
+                json.dump(state_data, f, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"Error saving blockchain state: {e}")
+            return False
+    
+    def load_state(self, filepath: str = "data/blockchain_state.json") -> bool:
+        """Load blockchain state from file."""
+        try:
+            import json
+            import os
+            
+            if not os.path.exists(filepath):
+                # File doesn't exist, start with empty state
+                return True
+            
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+            
+            # Load state from dictionary
+            self.from_dict(data)
+            
+            return True
+        except Exception as e:
+            print(f"Error loading blockchain state: {e}")
+            return False
 
 
 if __name__ == "__main__":
