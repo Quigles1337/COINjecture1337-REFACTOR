@@ -4,8 +4,9 @@ import sys
 import json
 import time
 import logging
+import sqlite3
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -570,6 +571,57 @@ def ingest_block():
     except Exception as e:
         logger.error(f'Error ingesting block: {e}')
         return jsonify({'status': 'error', 'message': 'Failed to ingest block'}), 500
+
+@app.route('/v1/ipfs/<cid>', methods=['GET'])
+@cross_origin()
+def get_ipfs_data(cid):
+    """Get IPFS proof bundle data by CID"""
+    try:
+        # Get block data by CID
+        conn = sqlite3.connect(storage.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT block_bytes FROM blocks 
+            WHERE block_bytes LIKE ? 
+            ORDER BY height DESC LIMIT 1
+        ''', (f'%{cid}%',))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            block_data = json.loads(result[0].decode('utf-8'))
+            
+            # Create proof bundle JSON
+            proof_bundle = {
+                'cid': cid,
+                'block_hash': block_data.get('hash', ''),
+                'block_height': block_data.get('index', 0),
+                'timestamp': block_data.get('timestamp', 0),
+                'miner_address': block_data.get('miner_address', ''),
+                'problem_data': block_data.get('problem_data', {}),
+                'solution_data': block_data.get('solution_data', {}),
+                'work_score': block_data.get('work_score', 0),
+                'gas_used': block_data.get('gas_used', 0),
+                'capacity': block_data.get('capacity', 'unknown')
+            }
+            
+            return jsonify({
+                'status': 'success',
+                'data': proof_bundle
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'CID not found'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 if __name__ == '__main__':
     logger.info('🚀 Starting COINjecture API with CORS support')

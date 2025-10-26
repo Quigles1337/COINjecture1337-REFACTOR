@@ -1,0 +1,24 @@
+[Unit]
+Description=COINjecture Continuous CID Migration Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/coinjecture
+ExecStart=/usr/bin/python3 /opt/coinjecture/scripts/continuous_cid_migration.py /opt/coinjecture/data/blockchain.db 30
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=PYTHONPATH=/opt/coinjecture/src
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

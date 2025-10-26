@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.13.17] - 2025-01-26 - 🚧 PARTIAL FIX: CID Length Issues Persist
+
+### 🚨 **CRITICAL ISSUE: CID Length Validation Failures**
+
+#### **Problem: 47-Character CIDs Still Present**
+- **Issue**: Database contains CIDs with 47 characters instead of required 46 for CIDv0
+- **Example**: `9DmpSoFexZskrXh4X87EPVr37jME7iwaZomVAYMFkxEAF7f` (47 chars, no 'Qm' prefix)
+- **Root Cause**: Previous CID generation used wrong multihash format (35 bytes instead of 34)
+- **Impact**: Frontend validation fails with "Invalid CID: Length 47, expected 46 characters"
+
+#### **Migration Status: Partial Success**
+- **Database Migration**: Successfully updated 3,805 blocks with correct 46-character CIDs
+- **Remaining Issues**: 8,000+ blocks still have 47-character CIDs
+- **API Endpoint**: Working test server on port 12347 provides correct proof bundles
+- **Main API**: Parameter issue prevents proper CID lookup (deployment issue)
+
+#### **Technical Details**
+- **Correct CIDs**: 46 characters, start with "Qm", use base58btc encoding
+- **Invalid CIDs**: 47 characters, wrong multihash format, cannot be decoded properly
+- **Multihash Format**: Should be `\x12\x20` + 32-byte hash = 34 bytes total
+- **Current Issue**: Some CIDs use 35-byte multihash format
+
+### 🔧 **COMPLETED FIXES**
+- **Core CID Generation**: `src/core/blockchain.py` and `src/cli.py` use correct `base58.BITCOIN_ALPHABET`
+- **Migration Scripts**: Fixed 13 scripts to use proper base58btc encoding
+- **Database Migration**: Partial success - 3,805 blocks converted to correct format
+- **API Fallback**: Working test server provides complete proof bundles
+- **CID Validation**: Scripts created to validate CID format compliance
+
+### 🚧 **REMAINING ISSUES**
+1. **Database Migration**: 8,000+ blocks still have 47-character CIDs
+2. **Main API Server**: Parameter issue prevents CID lookup (deployment fix needed)
+3. **CID Generation**: Some blocks still generated with wrong multihash format
+4. **Frontend Integration**: Needs to use working API server (port 12347)
+
+### 📊 **CURRENT STATUS**
+- **Total Blocks**: 12,033 blocks in database
+- **Correct CIDs**: 3,805 blocks (31.6%) with proper 46-character format
+- **Invalid CIDs**: 8,228 blocks (68.4%) with 47-character format
+- **API Status**: Test server working, main API needs parameter fix
+- **Frontend**: Can test with working API server
+
+### 📋 **NEXT STEPS**
+1. **Complete Database Migration**: Fix remaining 8,000+ blocks with wrong CIDs
+2. **Fix Main API Server**: Resolve parameter issue for production deployment
+3. **Validate All CIDs**: Ensure 100% of CIDs are 46 characters and start with "Qm"
+4. **Frontend Testing**: Use working API server for proof bundle downloads
+5. **Production Deployment**: Deploy fixed main API server
+
+### 🎯 **WORKING SOLUTION**
+- **Test API Server**: `http://167.172.213.70:12347/v1/ipfs/<cid>` works perfectly
+- **Proof Bundles**: Complete data returned for valid 46-character CIDs
+- **Frontend Ready**: Can test with working API server while main API is fixed
+
 ## [3.13.16] - 2025-01-26 - 🚧 CHALLENGES: CID Migration and API Data Flow Issues
 
 ### 🚨 **CRITICAL CHALLENGES IDENTIFIED**

@@ -1,0 +1,29 @@
+{
+  "dataset_info": {
+    "total_blocks": 100,
+    "date_range": {
+      "start": 1761440651.635552,
+      "end": 1761440806.892485
+    },
+    "unique_cids": 38,
+    "unique_problem_types": 3
+  },
+  "computational_metrics": {
+    "avg_problem_size": 23.96,
+    "avg_difficulty": 2.312,
+    "avg_solve_time": 7.98,
+    "avg_memory_used": 319.56,
+    "avg_complexity_multiplier": 273.4929886218044
+  },
+  "gas_metrics": {
+    "avg_gas_used": 202086.48,
+    "min_gas_used": 32622.0,
+    "max_gas_used": 632521.0,
+    "avg_gas_efficiency": 0.7470549441871341
+  },
+  "mining_metrics": {
+    "avg_work_score": 1.4,
+    "avg_mining_efficiency": 1.0967350046812707e-05,
+    "total_work_score": 140.0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "conversion_timestamp": 1761443350.0072289,
+  "results": {
+    "total_files": 7,
+    "fixed_files": 5,
+    "total_cid_updates": 0,
+    "csv_files": 4,
+    "json_files": 1,
+    "errors": 0
+  },
+  "converted_cids": [],
+  "errors": [],
+  "summary": {
+    "total_files": 7,
+    "fixed_files": 5,
+    "total_cid_updates": 0,
+    "errors": 0
+  }
+}

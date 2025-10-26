@@ -923,7 +923,11 @@ Examples:
                 print(f"✅ Proof bundle uploaded to IPFS: {cid}")
             except Exception as e:
                 print(f"⚠️  IPFS upload failed: {e}")
-                block.offchain_cid = f"Qm{hashlib.sha256(block.block_hash.encode()).hexdigest()[:44]}"
+                import base58
+                hash_bytes = hashlib.sha256(block.block_hash.encode()).digest()
+                # IPFS CIDv0 uses multihash with sha256 (0x12) and length 32 (0x20)
+                multihash = b'\x12\x20' + hash_bytes
+                block.offchain_cid = base58.b58encode(multihash, alphabet=base58.BITCOIN_ALPHABET).decode('ascii')
                 print(f"📦 Using placeholder CID: {block.offchain_cid}")
             
             print(f"✅ Block mined: #{block.index} - {block.block_hash[:16]}...")

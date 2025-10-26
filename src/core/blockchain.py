@@ -1030,22 +1030,34 @@ def mine_block(
                 block.offchain_cid = cid
                 print(f"✅ Proof bundle uploaded to IPFS: {cid}")
             else:
-                # Generate a placeholder CID for demonstration
+                # Generate a placeholder CID for demonstration using base58btc
                 import hashlib
-                placeholder_cid = "Qm" + hashlib.sha256(block.block_hash.encode()).hexdigest()[:44]
+                import base58
+                hash_bytes = hashlib.sha256(block.block_hash.encode()).digest()
+                # IPFS CIDv0 uses multihash with sha256 (0x12) and length 32 (0x20)
+                multihash = b'\x12\x20' + hash_bytes
+                placeholder_cid = base58.b58encode(multihash, alphabet=base58.BITCOIN_ALPHABET).decode('ascii')
                 block.offchain_cid = placeholder_cid
                 print(f"📦 Proof bundle ready (placeholder CID): {placeholder_cid}")
         else:
-            # Generate a placeholder CID when IPFS is not available
+            # Generate a placeholder CID when IPFS is not available using base58btc
             import hashlib
-            placeholder_cid = "Qm" + hashlib.sha256(block.block_hash.encode()).hexdigest()[:44]
+            import base58
+            hash_bytes = hashlib.sha256(block.block_hash.encode()).digest()
+            # IPFS CIDv0 uses multihash with sha256 (0x12) and length 32 (0x20)
+            multihash = b'\x12\x20' + hash_bytes
+            placeholder_cid = base58.b58encode(multihash, alphabet=base58.BITCOIN_ALPHABET).decode('ascii')
             block.offchain_cid = placeholder_cid
             print(f"📦 Proof bundle ready (placeholder CID): {placeholder_cid}")
             
     except Exception as e:
-        # Generate a placeholder CID on any error
+        # Generate a placeholder CID on any error using base58btc
         import hashlib
-        placeholder_cid = "Qm" + hashlib.sha256(block.block_hash.encode()).hexdigest()[:44]
+        import base58
+        hash_bytes = hashlib.sha256(block.block_hash.encode()).digest()
+        # IPFS CIDv0 uses multihash with sha256 (0x12) and length 32 (0x20)
+        multihash = b'\x12\x20' + hash_bytes
+        placeholder_cid = base58.b58encode(multihash, alphabet=base58.BITCOIN_ALPHABET).decode('ascii')
         block.offchain_cid = placeholder_cid
         print(f"📦 Proof bundle ready (placeholder CID): {placeholder_cid}")
 

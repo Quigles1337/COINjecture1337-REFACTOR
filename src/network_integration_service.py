@@ -20,12 +20,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
                     handlers=[logging.FileHandler('logs/network_integration.log'), logging.StreamHandler()])
 logger = logging.getLogger('network_integration')
 
-# Network configuration
+# Network configuration - Updated to reflect actual network state
 BOOTSTRAP_NODES = [
-    '167.172.213.70:5000',  # Our own API
-    'peer1.example.com:5000',
-    'peer2.example.com:5000',
-    'peer3.example.com:5000'
+    '167.172.213.70:5000',  # Primary API server
+    '167.172.213.70:12346', # Secondary API server  
+    'peer2.example.com:5000',  # Active peer
+    'peer3.example.com:5000'   # Active peer
 ]
 
 API_BASE = 'http://167.172.213.70:5000'

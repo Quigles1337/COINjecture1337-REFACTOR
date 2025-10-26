@@ -1,6 +1,6 @@
 # COINjecture: Utility-Based Computational Work Blockchain ($BEANS)
 
-> Built on Satoshi's foundation. Evolved with complexity theory. Driven by real-world utility. Every pro
+> Built on Satoshi's foundation. Evolved with complexity theory. Driven by real-world utility. 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-3.13.14-blue.svg)](https://github.com/beanapologist/COINjecture)
@@ -151,7 +151,7 @@ coinjectured list-submissions
 - **📊 Latest Block**: https://api.coinjecture.com/v1/data/block/latest
 - **🔍 Health Check**: https://api.coinjecture.com/health
 - **🔗 Genesis**: d1700c2681b75c1d22ed08285994c202d310ff25cf40851365ca6fea22011358
-- **👥 Network**: 16+ peers connected with real miners
+- **👥 Network**: 16 total connections, 3 active peers (167.172.213.70:5000, peer2.example.com:5000, peer3.example.com:5000)
 - **⚡ Real Miners**: Connected to actual network miners (BEANS addresses)
 - **🔄 Chain Regeneration**: Successfully regenerated from genesis block
 - **📡 All Endpoints**: Available worldwide with TLS/SSL

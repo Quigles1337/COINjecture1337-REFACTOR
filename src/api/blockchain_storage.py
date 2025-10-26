@@ -42,10 +42,7 @@ class COINjectureStorage:
         self.data_dir = data_dir
         self.pruning_mode = pruning_mode
         # Use absolute path for database
-        if data_dir == "data":
-            self.db_path = "/opt/coinjecture/data/blockchain.db"
-        else:
-            self.db_path = os.path.join(data_dir, "blockchain.db")
+        self.db_path = os.path.join(data_dir, "blockchain.db")
         
         # Ensure data directory exists
         os.makedirs(data_dir, exist_ok=True)
@@ -277,7 +274,7 @@ class COINjectureStorage:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        cursor.execute('SELECT MAX(height) FROM headers')
+        cursor.execute('SELECT MAX(height) FROM blocks')
         result = cursor.fetchone()
         
         conn.close()
@@ -403,7 +400,7 @@ class COINjectureStorage:
             
             if result and result[0]:
                 try:
-                    block_data = json.loads(result[0].decode('utf-8'))
+                    block_data = json.loads(result[0]) if isinstance(result[0], str) else json.loads(result[0].decode('utf-8'))
                     # Extract problem and solution data from block
                     return {
                         'problem_data': block_data.get('problem_data', {}),
@@ -482,7 +479,7 @@ class COINjectureStorage:
                 # Parse block data and check if miner matches
                 try:
                     if block_bytes:
-                        block_data = json.loads(block_bytes.decode('utf-8'))
+                        block_data = json.loads(block_bytes) if isinstance(block_bytes, str) else json.loads(block_bytes.decode('utf-8'))
                         # Check if this block was mined by the requested address
                         if block_data.get('miner_address') == miner_address:
                             block_data.update({
@@ -520,7 +517,7 @@ class COINjectureStorage:
             conn.close()
             
             if result:
-                block_data = json.loads(result[0].decode('utf-8'))
+                block_data = json.loads(result[0]) if isinstance(result[0], str) else json.loads(result[0].decode('utf-8'))
                 # Merge database columns with block data
                 block_data.update({
                     'work_score': result[1] if result[1] is not None else 0,
@@ -539,4 +536,4 @@ class COINjectureStorage:
             return None
 
 # Global storage instance
-storage = COINjectureStorage()
+storage = COINjectureStorage(data_dir="/opt/coinjecture/data")

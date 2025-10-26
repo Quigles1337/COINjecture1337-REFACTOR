@@ -8,6 +8,9 @@ urllib3>=1.26.0,<2.0.0
 # Cryptographic operations for wallet and transaction signing
 cryptography>=41.0.0
 
+# Base58 encoding for IPFS CID generation
+base58>=2.1.1
+
 # Flask dependencies for Faucet API
 Flask>=2.0.0
 Flask-CORS>=3.0.0

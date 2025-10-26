@@ -1,3 +1,238 @@
+
+// Cache busting and force refresh - Updated 1761451000
+const CACHE_BUSTER = '?v=1761451000&t=1761451000';
+const FORCE_REFRESH = true;
+
+// Override fetch to add cache busting
+const originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    if (typeof url === 'string' && url.includes('/v1/')) {
+        const separator = url.includes('?') ? '&' : '?';
+        url = url + separator + 't=' + Date.now();
+    }
+    return originalFetch.call(this, url, {
+        ...options,
+        cache: 'no-cache',
+        headers: {
+            ...options.headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+    });
+};
+
+// Force refresh metrics
+window.forceRefreshMetrics = function() {
+    console.log('🔄 Force refreshing metrics...');
+    if (window.webInterface) {
+        window.webInterface.fetchMetrics().then(metrics => {
+            window.webInterface.updateMetricsDashboard(metrics);
+            console.log('✅ Metrics refreshed:', metrics);
+        });
+    }
+};
+
+// Auto-refresh on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        window.forceRefreshMetrics();
+    }, 1000);
+});
+
+// Global IPFS viewer function
+window.openIPFSViewer = function(cid) {
+    const gateways = [
+        `https://gateway.pinata.cloud/ipfs/${cid}`,
+        `https://ipfs.io/ipfs/${cid}`,
+        `https://cloudflare-ipfs.com/ipfs/${cid}`,
+        `https://dweb.link/ipfs/${cid}`,
+        `https://gateway.ipfs.io/ipfs/${cid}`
+    ];
+    
+    // Try the first gateway
+    const newWindow = window.open(gateways[0], '_blank');
+    
+    // If the first gateway fails, show a modal with options
+    setTimeout(() => {
+        if (newWindow && newWindow.closed) {
+            showIPFSModal(cid, gateways);
+        }
+    }, 2000);
+};
+
+// Global IPFS modal function
+window.showIPFSModal = function(cid, gateways) {
+    const modal = document.createElement('div');
+    modal.className = 'ipfs-modal';
+    modal.innerHTML = `
+        <div class="ipfs-modal-content">
+            <div class="ipfs-modal-header">
+                <h3>📦 IPFS Content Viewer</h3>
+                <button class="ipfs-modal-close" onclick="this.closest('.ipfs-modal').remove()">×</button>
+            </div>
+            <div class="ipfs-modal-body">
+                <p><strong>CID:</strong> ${cid}</p>
+                <p>Choose a gateway to view the content:</p>
+                <div class="ipfs-gateways">
+                    ${gateways.map((gateway, index) => `
+                        <a href="${gateway}" target="_blank" class="ipfs-gateway-link">
+                            Gateway ${index + 1}: ${gateway.split('/')[2]}
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+};
+
+// Global download proof bundle function
+window.downloadProofBundle = async function(cid) {
+    try {
+        const apiBase = 'https://api.coinjecture.com';
+        
+        // Validate CID format
+        if (!cid || typeof cid !== 'string') {
+            throw new Error('Invalid CID: CID must be a non-empty string');
+        }
+        
+        // Check for base58 characters (more lenient than base58btc to handle backend encoding)
+        const base58Pattern = /^[1-9A-HJ-NP-Za-km-z0OIl]+$/;
+        if (!base58Pattern.test(cid)) {
+            const invalidChars = cid.split('').filter(char => !base58Pattern.test(char));
+            throw new Error(`Invalid CID: Contains non-base58 characters: ${invalidChars.join(', ')}`);
+        }
+        
+        // Note: Backend uses regular base58 encoding (includes 0, O, I, l) instead of base58btc
+        // This is a known issue with the backend CID generation
+        
+        // Check CID length (should be 46 characters for CIDv0)
+        if (cid.length !== 46) {
+            throw new Error(`Invalid CID: Length ${cid.length}, expected 46 characters for CIDv0`);
+        }
+        
+        // Check if CID starts with 'Qm' (CIDv0 format)
+        if (!cid.startsWith('Qm')) {
+            throw new Error(`Invalid CID: Must start with 'Qm' for CIDv0 format, got '${cid.substring(0, 2)}'`);
+        }
+        
+        // Get the latest block index first
+        let latestIndex = 11430; // Default fallback
+        try {
+            const latestResponse = await fetch(`${apiBase}/v1/data/block/latest`);
+            if (latestResponse.ok) {
+                const latestData = await latestResponse.json();
+                latestIndex = latestData.data.index;
+            }
+        } catch (e) {
+            console.log('Could not get latest block index, using default');
+        }
+        
+        // Try to find the block with this CID by searching recent blocks
+        let blockData = null;
+        let foundIndex = null;
+        
+        // Search through recent blocks (expanded range)
+        const searchRange = Math.min(200, latestIndex); // Search up to 200 blocks or latest
+        for (let i = 0; i < searchRange; i++) {
+            try {
+                const blockIndex = latestIndex - i;
+                const response = await fetch(`${apiBase}/v1/data/block/${blockIndex}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.data && data.data.cid === cid) {
+                        blockData = data.data;
+                        foundIndex = data.data.index;
+                        break;
+                    }
+                }
+            } catch (e) {
+                // Continue searching
+            }
+        }
+        
+        if (!blockData) {
+            // If not found, create a proof bundle with available data
+            blockData = {
+                cid: cid,
+                timestamp: new Date().toISOString(),
+                note: `Block data not found in recent ${searchRange} blocks (searched from ${latestIndex} down to ${latestIndex - searchRange + 1}). This CID may be from an older block or may not exist.`,
+                search_attempted: true,
+                search_range: searchRange,
+                latest_block: latestIndex
+            };
+        }
+        
+        // Create proof bundle with block data
+        const proofBundle = {
+            cid: cid,
+            block_data: blockData,
+            download_timestamp: new Date().toISOString(),
+            api_endpoint: apiBase,
+            search_method: foundIndex ? `Found in block ${foundIndex}` : `Searched ${searchRange} recent blocks (${latestIndex} to ${latestIndex - searchRange + 1})`,
+            search_details: {
+                latest_block: latestIndex,
+                search_range: searchRange,
+                blocks_searched: foundIndex ? `1-${searchRange}` : `1-${searchRange} (not found)`
+            }
+        };
+        
+        // Create downloadable JSON file
+        const blob = new Blob([JSON.stringify(proofBundle, null, 2)], { 
+            type: 'application/json' 
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proof-bundle-${cid.substring(0, 16)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('Proof bundle downloaded:', cid);
+        console.log('Block data:', blockData);
+        console.log('Search details:', proofBundle.search_details);
+    } catch (error) {
+        console.error('Error downloading proof bundle:', error);
+        
+        // Create error proof bundle with validation details
+        const errorBundle = {
+            cid: cid,
+            error: error.message,
+            error_type: 'validation_error',
+            timestamp: new Date().toISOString(),
+            validation_details: {
+                cid_length: cid ? cid.length : 0,
+                starts_with_qm: cid ? cid.startsWith('Qm') : false,
+                base58btc_valid: cid ? /^[1-9A-HJ-NP-Za-km-z]+$/.test(cid) : false
+            }
+        };
+        
+        // Create downloadable error JSON file
+        const blob = new Blob([JSON.stringify(errorBundle, null, 2)], { 
+            type: 'application/json' 
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proof-bundle-error-${cid ? cid.substring(0, 16) : 'invalid'}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert(`CID Validation Error: ${error.message}\n\nAn error proof bundle has been downloaded with validation details.`);
+    }
+};
 /**
  * COINjecture Web Interface
  * Complete frontend rebuild with all CLI commands and API integration
@@ -46,7 +281,7 @@ async function waitForNobleEd25519() {
 
 class WebInterface {
   constructor() {
-    // Use production API endpoint
+    // Use production API endpoint (HTTPS required for coinjecture.com)
     this.apiBase = 'https://api.coinjecture.com';
     this.output = document.getElementById('terminal-output');
     this.input = document.getElementById('command-input');
@@ -2630,7 +2865,7 @@ class WebInterface {
             </div>
             <div class="block-cid">
               <span class="label">CID:</span>
-              <a class="value cid-link" href="https://gateway.pinata.cloud/ipfs/${tx.cid}" target="_blank" title="View on IPFS: ${tx.cid}" onclick="event.preventDefault(); openIPFSViewer('${tx.cid}')">${tx.cid_short}</a>
+              <a class="value cid-link" href="#" title="Download proof bundle JSON: ${tx.cid}" onclick="event.preventDefault(); downloadProofBundle('${tx.cid}')">${tx.cid_short}</a>
             </div>
             <div class="block-gas">
               <span class="label">Gas Used:</span>
@@ -2727,6 +2962,35 @@ class WebInterface {
     `;
     
     document.body.appendChild(modal);
+  }
+
+  async downloadProofBundle(cid) {
+    try {
+      const response = await fetch(`${this.apiBase}/v1/ipfs/${cid}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch proof bundle');
+      }
+      
+      const data = await response.json();
+      
+      // Create downloadable JSON file
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { 
+        type: 'application/json' 
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proof-bundle-${cid.substring(0, 16)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('Proof bundle downloaded:', cid);
+    } catch (error) {
+      console.error('Error downloading proof bundle:', error);
+      alert('Failed to download proof bundle. CID may not be available.');
+    }
   }
 
   async fetchWithFallback(endpoint, options = {}) {
