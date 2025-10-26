@@ -1,0 +1,26 @@
+{
+  "fix_timestamp": 1761442920.9954062,
+  "results": {
+    "total_files": 7,
+    "fixed_files": 5,
+    "csv_files": 4,
+    "json_files": 1,
+    "zip_files": 0,
+    "errors": 0
+  },
+  "conversion_log": [],
+  "fixed_files": [
+    "kaggle_data/coinjecture_complexity_analysis.csv",
+    "kaggle_data/coinjecture_mining_efficiency.csv",
+    "kaggle_data/coinjecture_gas_calculation.csv",
+    "kaggle_data/dataset_summary.json",
+    "kaggle_data/coinjecture_computational_data.csv"
+  ],
+  "errors": [],
+  "summary": {
+    "total_files": 7,
+    "fixed_files": 5,
+    "errors": 0,
+    "cid_conversions": 0
+  }
+}
