@@ -65,7 +65,7 @@ export const IPFS_GATEWAYS = [
 
 // Cache Configuration
 export const CACHE_CONFIG = {
-  BUSTER: '?v=3.16.0&t=' + Date.now(),
+  BUSTER: '?v=3.16.1&t=' + Date.now(),
   FORCE_REFRESH: true,
   METRICS_REFRESH_INTERVAL: 15000, // 15 seconds
   BLOCK_REFRESH_INTERVAL: 5000     // 5 seconds
@@ -120,16 +120,16 @@ export const SUCCESS_MESSAGES = {
 
 // Version Information
 export const VERSION_INFO = {
-  VERSION: '3.16.0',
+  VERSION: '3.16.1',
   BUILD_DATE: '2024-12-25',
   API_VERSION: 'v1',
   FEATURES: [
+    'CLI Package Fixes',
     'Dynamic Gas Calculation',
     'IPFS Integration',
     'Mobile Optimization',
     'Real-time Metrics',
     'Blockchain Explorer',
-    'Data Marketplace',
-    'CLI Fixes'
+    'Data Marketplace'
   ]
 };

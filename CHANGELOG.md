@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.16.1] - 2025-10-28 - 🔧 CLI PACKAGE FIXES
+
+### 🎉 **HOTFIX: CLI Package Import Issues Resolved**
+
+#### **🔧 CLI Package Fixes**
+- **Fixed Relative Imports**: Resolved "attempted relative import with no known parent package" error
+- **Updated Import Structure**: Changed all relative imports to absolute imports in packaged CLI
+- **Fixed Launcher Scripts**: Updated mining scripts to use correct command format
+- **Tested Mining**: Verified mining functionality works end-to-end in packaged version
+
+#### **📦 Package Improvements**
+- **Import Compatibility**: CLI now works when run directly from package directory
+- **Mining Validation**: All mining operations now function correctly
+- **IPFS Integration**: Proper API server integration for IPFS operations
+- **Wallet Integration**: Seamless wallet loading and block signing
+
+#### **🚀 Ready for Production**
+- **✅ One-Click Installation**: Complete automated setup system
+- **✅ Working Mining**: Successful block mining and submission
+- **✅ Network Integration**: Proper API server communication
+- **✅ IPFS Operations**: Proof bundle upload and retrieval
+
+---
+
 ## [3.16.0] - 2025-10-28 - 🔧 CLI FIXES & DATA MARKETPLACE RELEASE
 
 ### 🎉 **RELEASE: CLI Fixes & Data Marketplace**

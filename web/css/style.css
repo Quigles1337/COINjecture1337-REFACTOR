@@ -4257,3 +4257,74 @@ code {
     transform: none;
   }
 }
+
+/* One-Click Installation Styles */
+.one-click-section {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border: 2px solid #9d7ce8;
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.one-click-section h2 {
+    color: #9d7ce8;
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+}
+
+.one-click-commands {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.command-box {
+    background: #0a0a0a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.command-box h3 {
+    color: #9d7ce8;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.command-box code {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    word-break: break-all;
+    margin-bottom: 1rem;
+}
+
+.copy-btn {
+    background: #9d7ce8;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+}
+
+.copy-btn:hover {
+    background: #8b6bc7;
+}
+
+.one-click-note {
+    color: #b0b0b0;
+    font-style: italic;
+    margin-top: 1rem;
+}

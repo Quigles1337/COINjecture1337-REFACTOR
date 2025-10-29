@@ -738,7 +738,7 @@ class WebInterface {
     }
 
     showWelcomeMessage() {
-        this.addOutput('🚀 COINjecture Web CLI v3.15.0 - $BEANS', 'info');
+        this.addOutput('🚀 COINjecture Web CLI v3.16.1 - $BEANS', 'info');
         this.addOutput('✨ Dynamic Gas Calculation System - IPFS-based gas costs', 'info');
         this.addOutput('', 'info');
         this.addOutput('Type "help" to see all available commands', 'info');
@@ -1727,7 +1727,7 @@ class WebInterface {
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Initializing COINjecture Web Interface v3.15.0');
+    console.log('🚀 Initializing COINjecture Web Interface v3.16.1');
     
     // Create global web interface instance
   window.webInterface = new WebInterface();
