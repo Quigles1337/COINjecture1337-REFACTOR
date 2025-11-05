@@ -66,32 +66,53 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Download all hash artifacts
         uses: actions/download-artifact@v3
         with:
           path: golden-artifacts
 
-      - name: Compare hashes across platforms
+      - name: List artifacts (debug)
         run: |
-          echo "========== DETERMINISM VALIDATION =========="
-          echo "Comparing golden hashes across all platforms..."
-
-          # TODO: Implement hash comparison script
-          # For now, just list artifacts
+          echo "Downloaded artifacts:"
           ls -la golden-artifacts/
 
-          echo ""
-          echo "✅ All platforms produce identical hashes!"
-          echo "==========================================="
+      - name: Compare hashes across platforms
+        id: compare
+        run: |
+          python scripts/compare_golden_hashes.py golden-artifacts/
+
+      - name: Upload determinism report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: determinism-report
+          path: determinism_report.md
 
       - name: Post comment on PR (if divergence detected)
         if: github.event_name == 'pull_request' && failure()
         uses: actions/github-script@v6
         with:
           script: |
+            const fs = require('fs');
+            let report = '⚠️ **CONSENSUS BREAKING CHANGE DETECTED**\n\n';
+            report += 'Golden vector hashes differ across platforms. This is a critical issue.\n\n';
+
+            // Try to read the report
+            try {
+              const reportContent = fs.readFileSync('determinism_report.md', 'utf8');
+              report += reportContent;
+            } catch (e) {
+              report += 'See workflow artifacts for full report.';
+            }
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.name,
-              body: '⚠️ **DETERMINISM VIOLATION DETECTED**\n\nGolden hashes differ across platforms. This is a critical SEC-001 issue.\n\nSee workflow artifacts for details.'
+              body: report
             })
