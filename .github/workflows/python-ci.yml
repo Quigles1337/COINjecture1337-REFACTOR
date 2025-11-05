@@ -1,0 +1,207 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+
+      - name: Install dependencies
+        working-directory: python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Build Rust extension with maturin
+        working-directory: rust/coinjecture-core
+        run: |
+          pip install maturin
+          maturin develop --release --features python
+
+      - name: Run pytest
+        working-directory: python
+        run: pytest tests/ -v --cov=src/coinjecture --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: python/coverage.xml
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 black isort mypy
+
+      - name: Run flake8
+        working-directory: python
+        run: flake8 src/ tests/ --max-line-length=100
+
+      - name: Check black formatting
+        working-directory: python
+        run: black --check src/ tests/
+
+      - name: Check isort
+        working-directory: python
+        run: isort --check-only src/ tests/
+
+      - name: Run mypy
+        working-directory: python
+        run: mypy src/ --ignore-missing-imports
+
+  pyo3-bindings:
+    name: PyO3 Bindings Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Build wheel
+        working-directory: rust/coinjecture-core
+        run: maturin build --release --features python
+
+      - name: Install wheel
+        working-directory: rust/coinjecture-core
+        run: |
+          pip install target/wheels/*.whl
+
+      - name: Test import
+        run: python -c "import coinjecture; print(f'Version: {coinjecture.__version__}'); print(f'Rust available: {coinjecture.RUST_AVAILABLE}')"
+
+      - name: Run golden vector tests
+        working-directory: python
+        run: pytest tests/test_rust_bindings.py -v
+
+  build-wheels:
+    name: Build Python Wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Build wheels
+        working-directory: rust/coinjecture-core
+        run: maturin build --release --features python --out dist
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ runner.os }}
+          path: rust/coinjecture-core/dist/*.whl
+          retention-days: 30
+
+  integration-test:
+    name: Integration Test (Python ↔ Rust Parity)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install dependencies
+        run: |
+          pip install maturin pytest
+
+      - name: Build Rust extension
+        working-directory: rust/coinjecture-core
+        run: maturin develop --release --features python
+
+      - name: Run parity tests
+        working-directory: tests/spec
+        run: pytest test_codec_golden.py -v -m golden
+
+      - name: Verify golden vectors
+        run: |
+          python -c "
+          from coinjecture._core import sha256_hash, compute_merkle_root_py
+          import hashlib
+
+          # Golden vector: SHA-256 empty
+          result = sha256_hash(b'')
+          expected = bytes.fromhex('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+          assert result == expected, f'SHA-256 empty mismatch: {result.hex()}'
+
+          # Golden vector: Merkle empty
+          result = compute_merkle_root_py([])
+          assert result == expected, f'Merkle empty mismatch: {result.hex()}'
+
+          print('✓ All golden vectors match!')
+          "
