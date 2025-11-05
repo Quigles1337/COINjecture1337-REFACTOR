@@ -187,6 +187,12 @@ jobs:
           cd python
           pytest -v --cov=src --cov-report=xml
 
+      - name: Run binding tests explicitly (critical gate)
+        run: |
+          cd python
+          pytest tests/test_rust_bindings.py -v -m bindings
+          echo "✅ Rust→Python bindings verified across PyO3 interface"
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:

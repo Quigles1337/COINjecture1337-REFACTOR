@@ -134,6 +134,60 @@ create_commitment(...) -> Commitment
 - Test failures indicate consensus breakage
 - Hashes MUST NOT change across versions (unless intentional hard fork)
 
+**Strict Decode Rules (Defense Layer 1):**
+
+The codec enforces **strict validation** on all deserialization paths to prevent:
+- Consensus drift from malformed inputs
+- Malicious crafted payloads (overlong varint, NaN/Inf)
+- Accidental incompatibility from codec upgrades
+
+**Validation Rules (Rust + Python):**
+
+1. **Codec Version Check**
+   - Reject if `codec_version != CODEC_VERSION` (currently 1)
+   - Prevents parsing data from incompatible protocol versions
+   - Implementation: `rust/coinjecture-core/src/codec.rs:42-48`
+
+2. **Unknown Field Rejection**
+   - Reject msgpack/JSON with unexpected keys
+   - Prevents forward compatibility issues
+   - Implementation: `rust/coinjecture-core/src/codec.rs:103-115`
+   - Python fallback: `python/src/coinjecture/consensus/codec.py:78-92`
+
+3. **Required Field Validation**
+   - All consensus-critical fields MUST be present
+   - Missing fields = immediate decode failure
+   - Enforced via Rust `#[serde(deny_unknown_fields)]`
+
+4. **Numeric Bounds**
+   - Reject NaN, Inf, -Inf in floats
+   - Reject negative timestamps
+   - Reject varint longer than canonical encoding
+   - Implementation: `rust/coinjecture-core/src/types.rs:124-138`
+
+5. **Size Limits**
+   - `MAX_BLOCK_SIZE`: 10 MB (hard limit)
+   - `MAX_TX_PER_BLOCK`: 10,000 transactions
+   - `MAX_PROOF_ELEMENTS`: 1,000 elements
+   - Implementation: `rust/coinjecture-core/src/types.rs:18-23`
+
+**Testing Strategy:**
+
+Strict decode is validated by:
+- Golden vector tests: `rust/coinjecture-core/tests/golden_tests.rs`
+- Rejection tests: `rust/coinjecture-core/tests/codec_rejection_tests.rs`
+- Parity validation: `.github/workflows/parity.yml` (dual-run mode)
+- Property tests: `python/tests/property/test_codec_properties.py`
+
+**CI Enforcement:**
+
+All PRs MUST pass:
+1. Parity workflow (no hash drift)
+2. Golden vector comparison (base vs PR branch)
+3. Codec rejection tests (18 negative test cases)
+
+See: `.github/workflows/parity.yml` for gate enforcement
+
 ---
 
 ### 3. proofs/interface.py - Solver Abstraction
