@@ -1,0 +1,508 @@
+# Prometheus Alert Rules for COINjecture SLOs
+# Version: 1.0.0
+# Last Updated: 2025-11-04
+
+groups:
+  # ==================== AVAILABILITY ALERTS ====================
+
+  - name: coinjecture.availability
+    interval: 30s
+    rules:
+      # SLO-001: API Availability
+      - alert: APIAvailabilityBelowSLO
+        expr: |
+          sum(rate(http_requests_total{code=~"2..|3.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m])) < 0.9995
+        for: 5m
+        labels:
+          severity: P1
+          slo: SLO-001
+          component: api
+        annotations:
+          summary: "API availability below 99.95% SLO"
+          description: "Current availability: {{ $value | humanizePercentage }}. Target: 99.95%"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#api-degradation"
+
+      - alert: APICompleteOutage
+        expr: |
+          sum(rate(http_requests_total{code=~"2..|3.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m])) < 0.50
+        for: 2m
+        labels:
+          severity: P0
+          slo: SLO-001
+          component: api
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: API complete outage detected"
+          description: "Success rate: {{ $value | humanizePercentage }}. Immediate response required!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#emergency-rollback"
+
+      # SLO-002: P2P Network Availability
+      - alert: P2PInsufficientPeers
+        expr: |
+          count(p2p_peer_status{status="active"})
+          /
+          count(p2p_peer_status) < 0.67
+        for: 5m
+        labels:
+          severity: P1
+          slo: SLO-002
+          component: p2p
+        annotations:
+          summary: "P2P network below 2/3 peer quorum"
+          description: "Active peers: {{ $value | humanizePercentage }}. Target: ≥66.7%"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#p2p-network-issues"
+
+      # SLO-003: IPFS Pinning Quorum
+      - alert: IPFSPinQuorumFailure
+        expr: ipfs_pin_quorum_success_ratio < 1.0
+        for: 1m
+        labels:
+          severity: P0
+          slo: SLO-003
+          component: ipfs
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: IPFS pin quorum failure (SEC-005)"
+          description: "Pin quorum ratio: {{ $value }}. Expected: 1.0 (100%). This is a consensus integrity violation!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#ipfs-pin-quorum-failure"
+
+  # ==================== PERFORMANCE ALERTS ====================
+
+  - name: coinjecture.performance
+    interval: 1m
+    rules:
+      # SLO-004: Block Validation Latency
+      - alert: BlockValidationLatencySpikeDesktop
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(block_validation_duration_seconds_bucket{tier="desktop"}[5m])) by (le)
+          ) > 300
+        for: 10m
+        labels:
+          severity: P1
+          slo: SLO-004
+          component: consensus
+          tier: desktop
+        annotations:
+          summary: "Block validation latency spike (Desktop tier)"
+          description: "p95 latency: {{ $value }}s. Target: <300s"
+
+      - alert: BlockValidationLatencySpikeServer
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(block_validation_duration_seconds_bucket{tier="server"}[5m])) by (le)
+          ) > 1800
+        for: 10m
+        labels:
+          severity: P1
+          slo: SLO-004
+          component: consensus
+          tier: server
+        annotations:
+          summary: "Block validation latency spike (Server tier)"
+          description: "p95 latency: {{ $value }}s. Target: <1800s"
+
+      # SLO-005: Header Hash Performance
+      - alert: HeaderHashSlowdown
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(header_hash_duration_seconds_bucket[5m])) by (le)
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: P2
+          slo: SLO-005
+          component: consensus
+        annotations:
+          summary: "Header hashing slower than expected"
+          description: "p99 latency: {{ $value }}ms. Target: <1ms"
+
+      # SLO-006: Merkle Root Performance
+      - alert: MerkleRootNonLinearScaling
+        expr: |
+          (
+            histogram_quantile(0.95,
+              sum(rate(merkle_root_duration_seconds_bucket{tx_count_bucket="10000"}[5m])) by (le)
+            )
+            /
+            histogram_quantile(0.95,
+              sum(rate(merkle_root_duration_seconds_bucket{tx_count_bucket="1000"}[5m])) by (le)
+            )
+          ) > 15
+        for: 10m
+        labels:
+          severity: P2
+          slo: SLO-006
+          component: consensus
+        annotations:
+          summary: "Merkle root computation not scaling linearly"
+          description: "10K/1K ratio: {{ $value }}. Expected: ~10 (linear scaling)"
+
+  # ==================== CORRECTNESS ALERTS ====================
+
+  - name: coinjecture.correctness
+    interval: 10s
+    rules:
+      # SLO-007: Parity Validation (CRITICAL)
+      - alert: ParityMismatchDetected
+        expr: dual_run_parity_match_rate < 1.0
+        for: 10s
+        labels:
+          severity: P0
+          slo: SLO-007
+          component: consensus
+          pagerduty: "true"
+          auto_rollback: "true"
+        annotations:
+          summary: "CRITICAL: Parity mismatch between legacy and refactored code"
+          description: "Match rate: {{ $value | humanizePercentage }}. Expected: 100%. INITIATING AUTOMATIC ROLLBACK!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#parity-mismatch-rollback"
+
+      - alert: ParityMismatchSustained
+        expr: |
+          (
+            sum(rate(dual_run_mismatches_total[5m]))
+            /
+            sum(rate(dual_run_comparisons_total[5m]))
+          ) > 0.0001
+        for: 5m
+        labels:
+          severity: P0
+          slo: SLO-007
+          component: consensus
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Sustained parity mismatch rate"
+          description: "Mismatch rate: {{ $value | humanizePercentage }}. Threshold: 0.01%"
+
+      # SLO-008: Cross-Platform Determinism
+      - alert: DeterminismDivergence
+        expr: determinism_test_failures_total > 0
+        for: 1m
+        labels:
+          severity: P0
+          slo: SLO-008
+          component: consensus
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Cross-platform determinism failure"
+          description: "Detected hash divergence across platforms. This violates consensus integrity!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#determinism-failure"
+
+      # SLO-009: Epoch Replay Protection
+      - alert: EpochReplayBypassAttempt
+        expr: epoch_replay_bypass_successful_total > 0
+        for: 10s
+        labels:
+          severity: P0
+          slo: SLO-009
+          component: security
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Epoch replay attack bypass detected (SEC-002)"
+          description: "A commitment was reused across epochs despite replay protection!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#security-incidents"
+
+      - alert: EpochReplayDetectionRate
+        expr: |
+          sum(rate(epoch_replay_detected_total[5m]))
+          /
+          sum(rate(block_validation_attempts_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: P2
+          slo: SLO-009
+          component: security
+        annotations:
+          summary: "High epoch replay detection rate"
+          description: "Replay detection: {{ $value | humanizePercentage }}. Possible coordinated attack?"
+
+  # ==================== RESOURCE ALERTS ====================
+
+  - name: coinjecture.resources
+    interval: 1m
+    rules:
+      # SLO-010: Memory Usage
+      - alert: MemoryExceedsBudgetDesktop
+        expr: |
+          process_resident_memory_bytes{component="consensus_core", tier="desktop"}
+          > 1073741824  # 1GB
+        for: 15m
+        labels:
+          severity: P1
+          slo: SLO-010
+          component: consensus
+          tier: desktop
+        annotations:
+          summary: "Memory usage exceeds Desktop tier budget"
+          description: "Current: {{ $value | humanize1024 }}B. Budget: 1GB"
+
+      - alert: MemoryLeakDetected
+        expr: |
+          deriv(process_resident_memory_bytes{component="consensus_core"}[1h]) > 104857600  # 100MB/hour growth
+        for: 2h
+        labels:
+          severity: P1
+          slo: SLO-010
+          component: consensus
+        annotations:
+          summary: "Possible memory leak detected"
+          description: "Memory growing at {{ $value | humanize1024 }}B/hour for 2 hours"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#memory-leak-investigation"
+
+      # SLO-011: CPU Utilization
+      - alert: CPUUtilizationHigh
+        expr: |
+          rate(process_cpu_seconds_total{component="consensus_core"}[5m]) > 0.80
+        for: 30m
+        labels:
+          severity: P2
+          slo: SLO-011
+          component: consensus
+        annotations:
+          summary: "CPU utilization above 80% for sustained period"
+          description: "Current: {{ $value | humanizePercentage }}. Target: <70% steady-state"
+
+      - alert: CPUSaturation
+        expr: |
+          rate(process_cpu_seconds_total{component="consensus_core"}[5m]) > 0.95
+        for: 10m
+        labels:
+          severity: P1
+          slo: SLO-011
+          component: consensus
+        annotations:
+          summary: "CPU approaching saturation"
+          description: "Current: {{ $value | humanizePercentage }}. Risk of request queuing!"
+
+      # SLO-012: Disk I/O
+      - alert: CachePersistSlow
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(cache_persist_duration_seconds_bucket[5m])) by (le)
+          ) > 0.100
+        for: 15m
+        labels:
+          severity: P2
+          slo: SLO-012
+          component: consensus
+        annotations:
+          summary: "Replay cache persistence slow"
+          description: "p99 persist latency: {{ $value }}ms. Target: <10ms"
+
+  # ==================== SECURITY ALERTS ====================
+
+  - name: coinjecture.security
+    interval: 30s
+    rules:
+      # SLO-013: Rate Limiting Effectiveness
+      - alert: RateLimitFalsePositiveHigh
+        expr: |
+          sum(rate(rate_limit_false_positives_total[5m]))
+          /
+          sum(rate(http_requests_total[5m])) > 0.001
+        for: 10m
+        labels:
+          severity: P2
+          slo: SLO-013
+          component: rate_limiter
+        annotations:
+          summary: "Rate limiter blocking legitimate traffic"
+          description: "False positive rate: {{ $value | humanizePercentage }}. Target: <0.1%"
+
+      - alert: RateLimitBypassSuspected
+        expr: |
+          sum(rate(rate_limit_blocked_total{reason="malicious"}[5m]))
+          /
+          sum(rate(rate_limit_blocked_total[5m])) < 0.90
+        for: 15m
+        labels:
+          severity: P1
+          slo: SLO-013
+          component: rate_limiter
+        annotations:
+          summary: "Rate limiter may not be catching malicious traffic"
+          description: "Malicious detection rate: {{ $value | humanizePercentage }}. Target: >99%"
+
+      # SLO-014: Vulnerability Patching
+      - alert: CriticalVulnerabilityDetected
+        expr: vulnerability_scan_critical_count{cvss=">=9.0"} > 0
+        for: 1m
+        labels:
+          severity: P0
+          slo: SLO-014
+          component: security
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: CVSS ≥9.0 vulnerability detected"
+          description: "{{ $value }} critical vulnerabilities found. Must patch within 24 hours!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#security-incidents"
+
+      - alert: HighVulnerabilityDetected
+        expr: vulnerability_scan_high_count{cvss=">=7.0"} > 5
+        for: 5m
+        labels:
+          severity: P1
+          slo: SLO-014
+          component: security
+        annotations:
+          summary: "Multiple high-severity vulnerabilities detected"
+          description: "{{ $value }} high-severity vulnerabilities found. Review and patch within 7 days"
+
+      # SLO-015: SBOM Freshness
+      - alert: SBOMMissingForRelease
+        expr: sbom_generation_failures_total > 0
+        for: 1m
+        labels:
+          severity: P1
+          slo: SLO-015
+          component: ci_cd
+        annotations:
+          summary: "SBOM generation failed for release"
+          description: "Release cannot proceed without signed SBOM"
+
+  # ==================== ERROR BUDGET ALERTS ====================
+
+  - name: coinjecture.error_budgets
+    interval: 5m
+    rules:
+      - alert: ErrorBudgetExhausted
+        expr: |
+          (
+            (1 - slo_target) * slo_measurement_window_minutes
+            -
+            sum_over_time(slo_violations_minutes[30d])
+          ) < 0
+        for: 5m
+        labels:
+          severity: P1
+          component: platform
+        annotations:
+          summary: "SLO error budget exhausted for {{ $labels.slo_name }}"
+          description: "Remaining budget: {{ $value }} minutes. Feature freeze in effect!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/SLO.md#budget-policy"
+
+      - alert: ErrorBudgetBurnRateHigh
+        expr: |
+          (
+            rate(slo_violations_minutes[1h])
+            /
+            ((1 - slo_target) * slo_measurement_window_minutes / 720)
+          ) > 2.0
+        for: 30m
+        labels:
+          severity: P2
+          component: platform
+        annotations:
+          summary: "Error budget burning at 2x expected rate"
+          description: "Current burn rate: {{ $value }}x. Budget will exhaust early at this rate"
+
+      - alert: ErrorBudgetLow
+        expr: |
+          (
+            (1 - slo_target) * slo_measurement_window_minutes
+            -
+            sum_over_time(slo_violations_minutes[30d])
+          )
+          /
+          ((1 - slo_target) * slo_measurement_window_minutes) < 0.10
+        for: 15m
+        labels:
+          severity: P2
+          component: platform
+        annotations:
+          summary: "SLO error budget below 10%"
+          description: "Remaining budget: {{ $value | humanizePercentage }}. Approaching freeze threshold"
+
+  # ==================== CI/CD PIPELINE ALERTS ====================
+
+  - name: coinjecture.ci_cd
+    interval: 5m
+    rules:
+      - alert: CITestFailureRate
+        expr: |
+          sum(rate(ci_test_failures_total[1h]))
+          /
+          sum(rate(ci_test_runs_total[1h])) > 0.05
+        for: 30m
+        labels:
+          severity: P2
+          component: ci_cd
+        annotations:
+          summary: "CI test failure rate elevated"
+          description: "Failure rate: {{ $value | humanizePercentage }}. Target: <5%"
+
+      - alert: GoldenVectorMismatch
+        expr: golden_vector_test_failures_total > 0
+        for: 1m
+        labels:
+          severity: P0
+          component: ci_cd
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Golden vector test failure"
+          description: "Consensus behavior has drifted from frozen reference! Rollback required!"
+          runbook: "https://github.com/Quigles1337/COINjecture1337-REFACTOR/blob/main/docs/RUNBOOKS.md#golden-vector-failure"
+
+      - alert: DependencyUpdateAvailable
+        expr: dependency_updates_available{severity="security"} > 0
+        for: 1h
+        labels:
+          severity: P3
+          component: ci_cd
+        annotations:
+          summary: "Security-related dependency updates available"
+          description: "{{ $value }} dependencies have security updates. Review weekly"
+
+  # ==================== DEAD MAN'S SWITCH ====================
+
+  - name: coinjecture.heartbeat
+    interval: 1m
+    rules:
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 5m
+        labels:
+          severity: P0
+          component: monitoring
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Prometheus monitoring is down"
+          description: "Cannot monitor system health without Prometheus!"
+
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 5m
+        labels:
+          severity: P0
+          component: monitoring
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Alertmanager is down"
+          description: "Alerts will not be delivered!"
+
+      - alert: NoBlocksValidatedRecently
+        expr: |
+          (time() - max(block_validation_timestamp_seconds)) > 600
+        for: 10m
+        labels:
+          severity: P1
+          component: consensus
+        annotations:
+          summary: "No blocks validated in past 10 minutes"
+          description: "Last block: {{ $value }}s ago. Network may be stalled"
+
+      - alert: NoMetricsReceived
+        expr: |
+          (time() - max(metrics_last_push_timestamp_seconds)) > 300
+        for: 5m
+        labels:
+          severity: P1
+          component: monitoring
+        annotations:
+          summary: "Metrics scraping appears stalled"
+          description: "Last metrics received {{ $value }}s ago"

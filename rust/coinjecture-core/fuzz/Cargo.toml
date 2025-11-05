@@ -1,0 +1,48 @@
+[package]
+name = "coinjecture-core-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.coinjecture-core]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_decode_block"
+path = "fuzz_targets/fuzz_decode_block.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_header_hash"
+path = "fuzz_targets/fuzz_header_hash.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_merkle_root"
+path = "fuzz_targets/fuzz_merkle_root.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_subset_sum_verify"
+path = "fuzz_targets/fuzz_subset_sum_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_commitment_verify"
+path = "fuzz_targets/fuzz_commitment_verify.rs"
+test = false
+doc = false
