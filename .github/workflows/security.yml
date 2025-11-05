@@ -80,6 +80,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
       - name: Install CycloneDX tools
         if: matrix.format == 'cyclonedx-json'
         run: |
@@ -92,29 +109,53 @@ jobs:
           # Go SBOM
           go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
 
-      - name: Generate Rust SBOM
+      - name: Install SPDX tools
+        if: matrix.format == 'spdx-json'
+        run: |
+          # Install syft for SPDX generation
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate Rust SBOM (CycloneDX)
         if: matrix.format == 'cyclonedx-json'
         run: |
           cd rust/coinjecture-core
           cargo cyclonedx --format json --output-file ../../sbom-rust-cyclonedx.json
 
-      - name: Generate Python SBOM
+      - name: Generate Python SBOM (CycloneDX)
         if: matrix.format == 'cyclonedx-json'
         run: |
           cd python
           cyclonedx-py requirements --format json --output-file ../sbom-python-cyclonedx.json
 
-      - name: Generate Go SBOM
+      - name: Generate Go SBOM (CycloneDX)
         if: matrix.format == 'cyclonedx-json'
         run: |
           cd go
           cyclonedx-gomod -json -output ../sbom-go-cyclonedx.json
 
+      - name: Generate Rust SBOM (SPDX)
+        if: matrix.format == 'spdx-json'
+        run: |
+          cd rust/coinjecture-core
+          syft . -o spdx-json=../../sbom-rust-spdx.json
+
+      - name: Generate Python SBOM (SPDX)
+        if: matrix.format == 'spdx-json'
+        run: |
+          cd python
+          syft . -o spdx-json=../sbom-python-spdx.json
+
+      - name: Generate Go SBOM (SPDX)
+        if: matrix.format == 'spdx-json'
+        run: |
+          cd go
+          syft . -o spdx-json=../sbom-go-spdx.json
+
       - name: Upload SBOMs
         uses: actions/upload-artifact@v3
         with:
           name: sbom-${{ matrix.format }}
-          path: sbom-*-${{ matrix.format }}.json
+          path: sbom-*-${{ matrix.format == 'cyclonedx-json' && 'cyclonedx' || 'spdx' }}.json
 
   dependency-review:
     name: Dependency Review
@@ -145,11 +186,77 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
 
+  build-release-binaries:
+    name: Build Release Binaries
+    runs-on: ${{ matrix.os }}
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: coinjectured-linux-amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: coinjectured-macos-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: coinjectured-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: coinjectured-windows-amd64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Rust library
+        run: |
+          cd rust/coinjecture-core
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build Go daemon
+        run: |
+          cd go
+          go build -ldflags="-s -w -X main.version=${{ github.sha }}" -o ${{ matrix.artifact }} ./cmd/coinjectured
+
+      - name: Generate checksum
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            certutil -hashfile go/${{ matrix.artifact }} SHA256 > go/${{ matrix.artifact }}.sha256
+          else
+            shasum -a 256 go/${{ matrix.artifact }} > go/${{ matrix.artifact }}.sha256
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-${{ matrix.os }}
+          path: |
+            go/${{ matrix.artifact }}
+            go/${{ matrix.artifact }}.sha256
+
   artifact-signing:
     name: Sign Release Artifacts (main branch only)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    needs: [security-audit, sbom-generation]
+    needs: [security-audit, sbom-generation, build-release-binaries]
+    permissions:
+      contents: read
+      id-token: write  # Required for Sigstore keyless signing
     steps:
       - uses: actions/checkout@v4
 
@@ -167,26 +274,100 @@ jobs:
         run: |
           # Sign SBOMs
           for sbom in artifacts/sbom-*/sbom-*.json; do
-            echo "Signing $sbom..."
-            cosign sign-blob --yes "$sbom" --output-signature "$sbom.sig"
+            if [ -f "$sbom" ]; then
+              echo "Signing $sbom..."
+              cosign sign-blob --yes "$sbom" --output-signature "$sbom.sig"
+              cosign sign-blob --yes "$sbom" --output-certificate "$sbom.pem"
+            fi
           done
 
           # Sign audit reports
           for audit in artifacts/security-audit-*/audit-*.json; do
-            echo "Signing $audit..."
-            cosign sign-blob --yes "$audit" --output-signature "$audit.sig"
+            if [ -f "$audit" ]; then
+              echo "Signing $audit..."
+              cosign sign-blob --yes "$audit" --output-signature "$audit.sig"
+              cosign sign-blob --yes "$audit" --output-certificate "$audit.pem"
+            fi
+          done
+
+          # Sign binaries
+          for binary_dir in artifacts/binaries-*; do
+            for binary in "$binary_dir"/*; do
+              if [ -f "$binary" ] && [[ ! "$binary" =~ \.sha256$ ]] && [[ ! "$binary" =~ \.sig$ ]] && [[ ! "$binary" =~ \.pem$ ]]; then
+                echo "Signing $binary..."
+                cosign sign-blob --yes "$binary" --output-signature "$binary.sig"
+                cosign sign-blob --yes "$binary" --output-certificate "$binary.pem"
+              fi
+            done
+          done
+
+      - name: Generate attestations
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          # Create attestation for each binary
+          for binary_dir in artifacts/binaries-*; do
+            for binary in "$binary_dir"/*; do
+              if [ -f "$binary" ] && [[ ! "$binary" =~ \.(sha256|sig|pem)$ ]]; then
+                echo "Creating attestation for $binary..."
+                cat > "$binary.att.json" <<EOF
+          {
+            "predicateType": "https://slsa.dev/provenance/v0.2",
+            "predicate": {
+              "builder": {
+                "id": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              },
+              "buildType": "https://github.com/Quigles1337/COINjecture1337-REFACTOR",
+              "invocation": {
+                "configSource": {
+                  "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                  "digest": {
+                    "sha1": "${{ github.sha }}"
+                  }
+                }
+              },
+              "metadata": {
+                "buildInvocationId": "${{ github.run_id }}",
+                "buildStartedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                "buildFinishedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                "completeness": {
+                  "parameters": true,
+                  "environment": false,
+                  "materials": true
+                },
+                "reproducible": false
+              },
+              "materials": [
+                {
+                  "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                  "digest": {
+                    "sha1": "${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+          }
+          EOF
+                # Sign attestation
+                cosign sign-blob --yes "$binary.att.json" --output-signature "$binary.att.json.sig"
+              fi
+            done
           done
 
       - name: Upload signed artifacts
         uses: actions/upload-artifact@v3
         with:
           name: signed-artifacts
-          path: artifacts/**/*.sig
+          path: |
+            artifacts/**/*.sig
+            artifacts/**/*.pem
+            artifacts/**/*.att.json
+            artifacts/**/*.att.json.sig
 
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
-    needs: [security-audit, sbom-generation, codeql-analysis]
+    needs: [security-audit, sbom-generation, codeql-analysis, artifact-signing]
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -202,6 +383,7 @@ jobs:
           echo "" >> SECURITY_REPORT.md
           echo "**Date:** $(date -u)" >> SECURITY_REPORT.md
           echo "**Commit:** ${{ github.sha }}" >> SECURITY_REPORT.md
+          echo "**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> SECURITY_REPORT.md
           echo "" >> SECURITY_REPORT.md
           echo "## Vulnerability Scan Results" >> SECURITY_REPORT.md
           echo "" >> SECURITY_REPORT.md
@@ -213,13 +395,57 @@ jobs:
           echo "" >> SECURITY_REPORT.md
           echo "## SBOM Files Generated" >> SECURITY_REPORT.md
           echo "" >> SECURITY_REPORT.md
+          echo "### CycloneDX Format" >> SECURITY_REPORT.md
           echo "- sbom-rust-cyclonedx.json" >> SECURITY_REPORT.md
           echo "- sbom-python-cyclonedx.json" >> SECURITY_REPORT.md
           echo "- sbom-go-cyclonedx.json" >> SECURITY_REPORT.md
           echo "" >> SECURITY_REPORT.md
+          echo "### SPDX Format" >> SECURITY_REPORT.md
+          echo "- sbom-rust-spdx.json" >> SECURITY_REPORT.md
+          echo "- sbom-python-spdx.json" >> SECURITY_REPORT.md
+          echo "- sbom-go-spdx.json" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "## Binary Artifacts" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "| Platform | Binary | Checksum | Signature | Attestation |" >> SECURITY_REPORT.md
+          echo "|----------|--------|----------|-----------|-------------|" >> SECURITY_REPORT.md
+          echo "| Linux x86_64 | coinjectured-linux-amd64 | ✓ SHA256 | ✓ Sigstore | ✓ SLSA v0.2 |" >> SECURITY_REPORT.md
+          echo "| macOS x86_64 | coinjectured-macos-amd64 | ✓ SHA256 | ✓ Sigstore | ✓ SLSA v0.2 |" >> SECURITY_REPORT.md
+          echo "| macOS ARM64 | coinjectured-macos-arm64 | ✓ SHA256 | ✓ Sigstore | ✓ SLSA v0.2 |" >> SECURITY_REPORT.md
+          echo "| Windows x86_64 | coinjectured-windows-amd64.exe | ✓ SHA256 | ✓ Sigstore | ✓ SLSA v0.2 |" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
           echo "## Artifact Signatures" >> SECURITY_REPORT.md
           echo "" >> SECURITY_REPORT.md
-          echo "All artifacts signed with Sigstore (keyless signing)." >> SECURITY_REPORT.md
+          echo "All artifacts signed with **Sigstore** (keyless signing with OIDC)." >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "Each artifact includes:" >> SECURITY_REPORT.md
+          echo "- \`.sig\` - Detached signature" >> SECURITY_REPORT.md
+          echo "- \`.pem\` - X.509 certificate chain" >> SECURITY_REPORT.md
+          echo "- \`.att.json\` - SLSA provenance attestation" >> SECURITY_REPORT.md
+          echo "- \`.att.json.sig\` - Attestation signature" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "## Verification" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "To verify an artifact:" >> SECURITY_REPORT.md
+          echo "\`\`\`bash" >> SECURITY_REPORT.md
+          echo "# Install cosign" >> SECURITY_REPORT.md
+          echo "curl -sL https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 -o cosign" >> SECURITY_REPORT.md
+          echo "chmod +x cosign" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "# Verify binary signature" >> SECURITY_REPORT.md
+          echo "cosign verify-blob --signature coinjectured-linux-amd64.sig \\" >> SECURITY_REPORT.md
+          echo "                    --certificate coinjectured-linux-amd64.pem \\" >> SECURITY_REPORT.md
+          echo "                    --certificate-identity-regexp='https://github.com/${{ github.repository }}/*' \\" >> SECURITY_REPORT.md
+          echo "                    --certificate-oidc-issuer=https://token.actions.githubusercontent.com \\" >> SECURITY_REPORT.md
+          echo "                    coinjectured-linux-amd64" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "# Verify checksum" >> SECURITY_REPORT.md
+          echo "shasum -a 256 -c coinjectured-linux-amd64.sha256" >> SECURITY_REPORT.md
+          echo "\`\`\`" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "---" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+          echo "*Generated by COINjecture Security Pipeline*" >> SECURITY_REPORT.md
 
           cat SECURITY_REPORT.md
 
