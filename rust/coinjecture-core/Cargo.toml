@@ -54,6 +54,7 @@ serde_test = "1.0"
 [features]
 default = []
 python = ["pyo3"]
+ffi = []  # C FFI for Go/C interop
 strict-determinism = []
 
 [profile.release]

@@ -291,8 +291,28 @@ func (s *Server) handleSubmitProof(c *gin.Context) {
 		return
 	}
 
-	// TODO: Full verification with budget
-	// For now, accept if syntax is valid
+	// Verify proof with Rust consensus engine (if CGO available)
+	isValid, verifyErr := verifyProofWithRust(&proof, proof.Tier)
+	if verifyErr != nil {
+		proofSubmissionsTotal.WithLabelValues("rejected_verify").Inc()
+		s.log.WithError(verifyErr).WithField("tier", proof.Tier).Error("Proof verification failed")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "proof verification failed",
+			"details": verifyErr.Error(),
+		})
+		return
+	}
+
+	if !isValid {
+		proofSubmissionsTotal.WithLabelValues("rejected_verify").Inc()
+		s.log.WithField("tier", proof.Tier).Warn("Proof solution invalid")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid proof solution",
+		})
+		return
+	}
+
+	// Proof is valid
 	proofSubmissionsTotal.WithLabelValues("accepted").Inc()
 
 	s.log.WithFields(logger.Fields{

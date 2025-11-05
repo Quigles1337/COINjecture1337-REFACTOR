@@ -51,6 +51,10 @@ pub mod verify;
 #[cfg(feature = "python")]
 pub mod python;
 
+// C FFI bindings for Go/C interop (feature-gated)
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
 // Re-exports for convenience
 pub use errors::{ConsensusError, Result};
 pub use types::{
