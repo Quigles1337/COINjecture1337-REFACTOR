@@ -178,11 +178,11 @@ func (bb *BlockBuilder) applyTransaction(tx *mempool.Transaction, blockNumber ui
 	recipient.UpdatedAt = time.Now()
 
 	// Update state
-	if err := bb.stateManager.UpdateAccount(sender); err != nil {
+	if err := bb.stateManager.UpdateAccount(sender.Address, sender.Balance, sender.Nonce); err != nil {
 		return fmt.Errorf("failed to update sender account: %w", err)
 	}
 
-	if err := bb.stateManager.UpdateAccount(recipient); err != nil {
+	if err := bb.stateManager.UpdateAccount(recipient.Address, recipient.Balance, recipient.Nonce); err != nil {
 		return fmt.Errorf("failed to update recipient account: %w", err)
 	}
 
