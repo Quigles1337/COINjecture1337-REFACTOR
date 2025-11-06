@@ -206,8 +206,24 @@ func runDaemon(cmd *cobra.Command, args []string) {
 				"tx_count":     len(block.Transactions),
 			}).Info("New block produced, broadcasting to network")
 
-			// TODO: Broadcast block via P2P
-			// p2pManager.BroadcastBlock(block)
+			// Convert and broadcast block via P2P
+			blockMsg := p2p.BlockToP2PMessage(block)
+			if err := p2pManager.BroadcastBlock(blockMsg); err != nil {
+				log.WithError(err).WithField("block_number", block.BlockNumber).Error("Failed to broadcast block")
+			}
+		})
+
+		// Set P2P block handler to process blocks via consensus engine
+		p2pManager.SetConsensusBlockHandler(func(blockMsg *p2p.BlockMessage) error {
+			// Convert P2P message to consensus block
+			block := p2p.P2PMessageToBlock(blockMsg)
+
+			// Process block via consensus engine
+			if err := consensusEngine.ProcessBlock(block); err != nil {
+				return fmt.Errorf("consensus engine rejected block: %w", err)
+			}
+
+			return nil
 		})
 
 		// Start consensus engine

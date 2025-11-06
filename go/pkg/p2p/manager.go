@@ -29,6 +29,9 @@ type Manager struct {
 	mempool *mempool.Mempool
 	state   *state.StateManager
 
+	// Consensus engine callback
+	onConsensusBlock func(*BlockMessage) error
+
 	// Shutdown
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -194,6 +197,11 @@ func (m *Manager) BroadcastBlock(block *BlockMessage) error {
 	return fmt.Errorf("block gossip not initialized")
 }
 
+// SetConsensusBlockHandler sets the callback for received blocks
+func (m *Manager) SetConsensusBlockHandler(handler func(*BlockMessage) error) {
+	m.onConsensusBlock = handler
+}
+
 // AnnounceCID announces a CID to the network (equilibrium gossip)
 func (m *Manager) AnnounceCID(cid string, cidType string, blockNumber uint64) {
 	if m.cidGossip == nil {
@@ -280,13 +288,15 @@ func (m *Manager) handleBlockReceived(block *BlockMessage) error {
 		"tx_count":     len(block.Transactions),
 	}).Info("Processing block from network")
 
-	// TODO: Validate block header
-	// TODO: Validate transactions
-	// TODO: Apply block to state
-	// TODO: Update mempool (remove included transactions)
-
-	// For now, just log
-	m.log.WithField("block_number", block.BlockNumber).Info("Block processing complete (stub)")
+	// Forward to consensus engine if callback is set
+	if m.onConsensusBlock != nil {
+		if err := m.onConsensusBlock(block); err != nil {
+			m.log.WithError(err).WithField("block_number", block.BlockNumber).Error("Consensus engine rejected block")
+			return err
+		}
+	} else {
+		m.log.Warn("No consensus engine callback set - block not processed")
+	}
 
 	return nil
 }
