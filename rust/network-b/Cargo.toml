@@ -1,0 +1,76 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "node",
+    "runtime",
+    "pallets/beans",
+]
+
+[workspace.package]
+authors = ["Quigles1337 <adz@alphx.io>"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Quigles1337/COINjecture1337-REFACTOR"
+version = "4.5.0"
+
+[workspace.dependencies]
+# Substrate primitives
+sp-core = { version = "34.0.0", default-features = false }
+sp-runtime = { version = "39.0.0", default-features = false }
+sp-std = { version = "14.0.0", default-features = false }
+sp-io = { version = "38.0.0", default-features = false }
+sp-consensus-aura = { version = "0.40.0", default-features = false }
+sp-consensus-grandpa = { version = "21.0.0", default-features = false }
+sp-api = { version = "34.0.0", default-features = false }
+sp-block-builder = { version = "34.0.0", default-features = false }
+sp-inherents = { version = "34.0.0", default-features = false }
+sp-offchain = { version = "34.0.0", default-features = false }
+sp-session = { version = "35.0.0", default-features = false }
+sp-transaction-pool = { version = "34.0.0", default-features = false }
+sp-version = { version = "37.0.0", default-features = false }
+sp-genesis-builder = { version = "0.15.0", default-features = false }
+
+# FRAME dependencies
+frame-support = { version = "37.0.0", default-features = false }
+frame-system = { version = "37.0.0", default-features = false }
+frame-executive = { version = "37.0.0", default-features = false }
+pallet-aura = { version = "36.0.0", default-features = false }
+pallet-balances = { version = "38.0.0", default-features = false }
+pallet-grandpa = { version = "37.0.0", default-features = false }
+pallet-sudo = { version = "37.0.0", default-features = false }
+pallet-timestamp = { version = "36.0.0", default-features = false }
+pallet-transaction-payment = { version = "37.0.0", default-features = false }
+
+# Client dependencies
+sc-cli = { version = "0.46.0" }
+sc-executor = { version = "0.40.0" }
+sc-network = { version = "0.44.0" }
+sc-service = { version = "0.45.0" }
+sc-telemetry = { version = "24.0.0" }
+sc-transaction-pool = { version = "37.0.0" }
+sc-transaction-pool-api = { version = "37.0.0" }
+sc-consensus-aura = { version = "0.44.0" }
+sc-consensus = { version = "0.43.0" }
+sc-consensus-grandpa = { version = "0.29.0" }
+sc-client-api = { version = "37.0.0" }
+sc-basic-authorship = { version = "0.44.0" }
+
+# Node dependencies
+frame-benchmarking-cli = { version = "42.0.0" }
+sc-rpc-api = { version = "0.43.0" }
+
+# Serialization
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false }
+scale-info = { version = "2.11.3", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+
+# Utility
+clap = { version = "4.5" }
+futures = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
