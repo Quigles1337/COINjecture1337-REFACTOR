@@ -1,8 +1,8 @@
 # COINjecture Consensus Engine
 
-**Version:** 4.5.0
-**Author:** Quigles1337 <adz@darqlabs.io>
-**Status:** Production Ready
+**Version:** 4.5.0+
+**Author:** Quigles1337 <adz@alphx.io>
+**Status:** Production Ready (Fully Featured)
 
 ---
 
@@ -793,8 +793,9 @@ INFO  Block accepted and applied  block_number=12347 block_hash=d4c3b2a1
 
 ## Development Roadmap
 
-### Completed (v4.5.0)
+### Completed (v4.5.0+)
 
+**Core Consensus (v4.5.0):**
 - [x] Block structure with Merkle trees
 - [x] PoA consensus engine with round-robin rotation
 - [x] Block builder with mempool integration
@@ -804,16 +805,34 @@ INFO  Block accepted and applied  block_number=12347 block_hash=d4c3b2a1
 - [x] Daemon integration
 - [x] Single-node development mode
 
-### Pending
+**Advanced Features (v4.5.0+):**
+- [x] **Fork choice rule** - Longest valid chain with hash tiebreaker
+- [x] **Chain reorganization** - Atomic state rollback with snapshots
+- [x] **P2P block broadcasting** - Full libp2p integration with gossipsub
+- [x] **Block sync protocol** - Historical block downloads from peers
+- [x] **Validator slashing** - 4 offense types with reputation scoring
+- [x] **Checkpoint system** - Fast sync from configurable checkpoints
+- [x] **Consensus tests** - 15 engine tests, 11 builder tests, 5 integration tests
+- [x] **Load testing** - TPS measurement framework with real-time metrics
 
-- [ ] **Fork choice rule** (longest valid chain)
-- [ ] **Chain reorganization** (handle forks gracefully)
-- [ ] **P2P block broadcasting** (currently TODO in code)
-- [ ] **Block sync protocol** (download blocks from peers)
-- [ ] **Validator slashing** (penalize malicious validators)
-- [ ] **Checkpoint system** (fast sync from recent checkpoints)
-- [ ] **Consensus tests** (unit + integration tests)
-- [ ] **Load testing** (measure actual TPS under load)
+### Code References
+
+**Advanced Features:**
+- **Fork choice:** [go/pkg/consensus/fork_choice.go](../go/pkg/consensus/fork_choice.go)
+- **Slashing system:** [go/pkg/consensus/slashing.go](../go/pkg/consensus/slashing.go)
+- **Checkpoint system:** [go/pkg/consensus/checkpoint.go](../go/pkg/consensus/checkpoint.go)
+- **Engine tests:** [go/pkg/consensus/engine_test.go](../go/pkg/consensus/engine_test.go)
+- **Builder tests:** [go/pkg/consensus/builder_test.go](../go/pkg/consensus/builder_test.go)
+- **Integration tests:** [go/test/integration/multi_node_test.go](../go/test/integration/multi_node_test.go)
+- **Load testing:** [go/cmd/loadtest/main.go](../go/cmd/loadtest/main.go)
+
+### Future Enhancements
+
+Potential improvements for v5.0:
+- [ ] **Dynamic validator set** - Add/remove validators via governance
+- [ ] **Finality gadget** - Explicit finality after N blocks
+- [ ] **Cross-chain bridges** - Inter-blockchain communication
+- [ ] **Optimistic rollups** - Layer 2 scaling solutions
 
 ---
 
