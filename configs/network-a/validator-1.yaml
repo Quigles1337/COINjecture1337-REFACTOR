@@ -1,0 +1,361 @@
+# COINjecture Network A - Validator 1 Configuration
+# Production-Grade Configuration for Institutional Deployment
+# Version: 4.5.0+
+# Network: coinjecture-go-testnet (Network A)
+
+# ==============================================================================
+# NETWORK CONFIGURATION
+# ==============================================================================
+network:
+  # Unique network identifier - MUST match across all validators
+  id: "coinjecture-go-testnet"
+
+  # Genesis block timestamp (0 = use current system time)
+  # In production, set to specific UTC timestamp for deterministic genesis
+  genesis_timestamp: 0
+
+  # Network magic bytes for protocol versioning
+  protocol_version: "1.0.0"
+
+  # Chain ID for replay protection (unique per network)
+  chain_id: 1337
+
+# ==============================================================================
+# CONSENSUS CONFIGURATION (Proof-of-Authority)
+# ==============================================================================
+consensus:
+  # Enable consensus engine
+  enabled: true
+
+  # Block production interval (institutional standard: 2s for high throughput)
+  block_time: "2s"
+
+  # Maximum block size (bytes) - prevents DoS
+  max_block_size: 1048576  # 1MB
+
+  # Gas limits (institutional safety bounds)
+  gas_limit_per_block: 30000000
+  gas_limit_per_tx: 10000000
+
+  # Validator set (Ed25519 public keys - 64 hex chars each)
+  # SECURITY: Store private keys in HSM or secure key management system
+  validators:
+    - "VALIDATOR1_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+    - "VALIDATOR2_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+    - "VALIDATOR3_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+
+  # This validator's private key (Ed25519 - 64 hex chars)
+  # SECURITY: In production, use environment variable or key management service
+  # Example: ${VALIDATOR_PRIVATE_KEY}
+  validator_key: "VALIDATOR1_PRIVKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+
+  # Fork choice configuration
+  fork_choice:
+    enabled: true
+    rule: "longest-chain"
+    max_reorg_depth: 100  # Institutional safety: prevent deep reorgs
+
+  # Slashing configuration
+  slashing:
+    enabled: true
+    jail_duration: "1h"
+    permanent_ban_threshold: 100
+
+  # Checkpoint configuration
+  checkpoints:
+    enabled: true
+    interval: 1000  # Create checkpoint every 1000 blocks
+    max_checkpoints: 100
+
+# ==============================================================================
+# P2P NETWORKING CONFIGURATION (libp2p)
+# ==============================================================================
+p2p:
+  # Listening addresses
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/9000"      # IPv4
+    - "/ip6/::/tcp/9000"            # IPv6
+
+  # External address for NAT traversal (set to public IP/domain)
+  # Example: "/dns4/validator1.coinjecture.network/tcp/9000"
+  external_addr: "/ip4/PUBLIC_IP_PLACEHOLDER/tcp/9000"
+
+  # Bootstrap peers (other validators) - replace with actual peer IDs
+  # Format: /ip4/<ip>/tcp/<port>/p2p/<peer-id>
+  bootstrap_peers:
+    - "/ip4/VALIDATOR2_IP/tcp/9000/p2p/VALIDATOR2_PEER_ID"
+    - "/ip4/VALIDATOR3_IP/tcp/9000/p2p/VALIDATOR3_PEER_ID"
+
+  # Connection limits (institutional DDoS protection)
+  max_connections: 100
+  max_connections_per_peer: 3
+
+  # Timeouts (production-grade reliability)
+  dial_timeout: "30s"
+  connection_timeout: "10s"
+
+  # Discovery configuration
+  discovery:
+    mdns:
+      enabled: false  # Disable in production for security
+    dht:
+      enabled: true
+      mode: "server"  # Validators act as DHT servers
+
+  # Security settings
+  security:
+    # Enable TLS for P2P connections
+    tls_enabled: true
+
+    # Peer authentication
+    require_peer_authentication: true
+
+    # Rate limiting
+    rate_limit:
+      enabled: true
+      messages_per_second: 1000
+      burst: 2000
+
+# ==============================================================================
+# API SERVER CONFIGURATION
+# ==============================================================================
+api:
+  # Enable REST API
+  enabled: true
+
+  # Listening address (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)
+  host: "0.0.0.0"
+  port: 8080
+
+  # CORS configuration (institutional security)
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://app.coinjecture.network"
+      - "https://dashboard.coinjecture.network"
+    allowed_methods: ["GET", "POST", "OPTIONS"]
+    allowed_headers: ["Content-Type", "Authorization"]
+    max_age: 3600
+
+  # Rate limiting (DDoS protection)
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+    burst: 200
+
+  # Authentication (institutional access control)
+  auth:
+    enabled: true
+    # JWT secret (use environment variable in production)
+    jwt_secret: "${API_JWT_SECRET}"
+    token_expiry: "24h"
+
+  # TLS/HTTPS configuration
+  tls:
+    enabled: true
+    cert_file: "/etc/coinjecture/tls/server.crt"
+    key_file: "/etc/coinjecture/tls/server.key"
+
+  # Request timeout
+  request_timeout: "30s"
+
+  # Maximum request body size (prevent memory exhaustion)
+  max_request_body_size: 1048576  # 1MB
+
+# ==============================================================================
+# DATABASE CONFIGURATION (SQLite)
+# ==============================================================================
+database:
+  # Database file path
+  path: "/var/lib/coinjecture/network-a/validator1.db"
+
+  # Connection pool settings
+  max_open_connections: 25
+  max_idle_connections: 5
+  connection_max_lifetime: "1h"
+
+  # WAL mode for better concurrency (institutional standard)
+  wal_mode: true
+
+  # Synchronous mode (institutional data integrity)
+  # Options: OFF, NORMAL, FULL, EXTRA
+  synchronous: "FULL"
+
+  # Cache size (KB) - tune for performance
+  cache_size: 102400  # 100MB
+
+  # Auto-vacuum for disk space management
+  auto_vacuum: "INCREMENTAL"
+
+  # Backup configuration
+  backup:
+    enabled: true
+    interval: "1h"
+    retention: 168  # Keep 7 days of hourly backups
+    path: "/var/backups/coinjecture/network-a"
+
+# ==============================================================================
+# LOGGING CONFIGURATION
+# ==============================================================================
+logger:
+  # Log level: debug, info, warn, error
+  level: "info"
+
+  # Format: json (production), text (development)
+  format: "json"
+
+  # Output destinations
+  outputs:
+    - type: "stdout"
+    - type: "file"
+      path: "/var/log/coinjecture/validator1.log"
+      max_size: 100  # MB
+      max_backups: 30
+      max_age: 90  # days
+      compress: true
+
+  # Structured logging fields (institutional observability)
+  fields:
+    service: "coinjectured"
+    network: "network-a"
+    validator: "validator1"
+    version: "4.5.0+"
+
+  # Sampling for high-frequency logs (performance optimization)
+  sampling:
+    enabled: true
+    initial: 100
+    thereafter: 100
+
+# ==============================================================================
+# MONITORING CONFIGURATION
+# ==============================================================================
+monitoring:
+  # Prometheus metrics endpoint
+  prometheus:
+    enabled: true
+    host: "0.0.0.0"
+    port: 9090
+    path: "/metrics"
+
+  # Health check endpoint
+  health_check:
+    enabled: true
+    port: 8081
+    path: "/health"
+
+  # Profiling endpoint (disable in production after testing)
+  pprof:
+    enabled: false
+    host: "127.0.0.1"  # Localhost only for security
+    port: 6060
+
+  # Alerting thresholds
+  alerts:
+    block_production_lag_threshold: "10s"
+    peer_count_min: 2
+    disk_usage_threshold: 0.90  # 90%
+    memory_usage_threshold: 0.85  # 85%
+
+# ==============================================================================
+# MEMPOOL CONFIGURATION
+# ==============================================================================
+mempool:
+  # Maximum transactions in mempool
+  max_size: 10000
+
+  # Maximum pending transactions per account
+  max_per_account: 100
+
+  # Transaction expiry time
+  tx_expiry: "24h"
+
+  # Minimum gas price (prevent spam)
+  min_gas_price: 1
+
+  # Priority queue configuration
+  priority:
+    enabled: true
+    # Sort by: gas_price, nonce, timestamp
+    sort_by: "gas_price"
+
+# ==============================================================================
+# SECURITY CONFIGURATION
+# ==============================================================================
+security:
+  # Firewall rules (iptables/nftables)
+  firewall:
+    enabled: true
+    allowed_ports:
+      - 9000   # P2P
+      - 8080   # API
+      - 9090   # Metrics
+
+  # Key management
+  key_management:
+    # Use Hardware Security Module (HSM) in production
+    hsm_enabled: false
+    hsm_provider: "aws-kms"  # aws-kms, azure-keyvault, gcp-kms
+
+    # Key rotation
+    rotation_enabled: false
+    rotation_interval: "90d"
+
+  # Audit logging
+  audit:
+    enabled: true
+    log_path: "/var/log/coinjecture/audit.log"
+    events:
+      - "block_produced"
+      - "block_received"
+      - "validator_slashed"
+      - "api_auth_failure"
+
+# ==============================================================================
+# OPERATIONAL CONFIGURATION
+# ==============================================================================
+operations:
+  # Graceful shutdown timeout
+  shutdown_timeout: "30s"
+
+  # Process management
+  pid_file: "/var/run/coinjecture/validator1.pid"
+
+  # Resource limits
+  limits:
+    max_memory: "4GB"
+    max_cpu_percent: 80
+
+  # Auto-restart on failure
+  restart:
+    enabled: true
+    max_retries: 3
+    backoff: "exponential"
+
+  # Maintenance windows
+  maintenance:
+    enabled: true
+    # Cron format: "0 2 * * *" = 2 AM daily
+    schedule: "0 2 * * *"
+    duration: "1h"
+
+# ==============================================================================
+# FEATURE FLAGS (Institutional Rollout Control)
+# ==============================================================================
+features:
+  enable_slashing: true
+  enable_checkpoints: true
+  enable_fork_choice: true
+  enable_state_pruning: false  # Enable after testing
+  enable_tx_indexing: true
+  enable_event_subscriptions: true
+
+# ==============================================================================
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# ==============================================================================
+# Use environment variables to override sensitive values:
+# - VALIDATOR_PRIVATE_KEY
+# - API_JWT_SECRET
+# - DB_ENCRYPTION_KEY
+# - TLS_CERT_PATH
+# - TLS_KEY_PATH

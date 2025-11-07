@@ -1,0 +1,225 @@
+# COINjecture Network A - Validator 3 Configuration
+# Production-Grade Configuration for Institutional Deployment
+# Version: 4.5.0+
+# Network: coinjecture-go-testnet (Network A)
+
+network:
+  id: "coinjecture-go-testnet"
+  genesis_timestamp: 0
+  protocol_version: "1.0.0"
+  chain_id: 1337
+
+consensus:
+  enabled: true
+  block_time: "2s"
+  max_block_size: 1048576
+  gas_limit_per_block: 30000000
+  gas_limit_per_tx: 10000000
+
+  validators:
+    - "VALIDATOR1_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+    - "VALIDATOR2_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+    - "VALIDATOR3_PUBKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+
+  # THIS VALIDATOR'S KEY (Validator 3)
+  validator_key: "VALIDATOR3_PRIVKEY_PLACEHOLDER_64_HEX_CHARS_REPLACE_WITH_ACTUAL_KEY"
+
+  fork_choice:
+    enabled: true
+    rule: "longest-chain"
+    max_reorg_depth: 100
+
+  slashing:
+    enabled: true
+    jail_duration: "1h"
+    permanent_ban_threshold: 100
+
+  checkpoints:
+    enabled: true
+    interval: 1000
+    max_checkpoints: 100
+
+p2p:
+  listen_addrs:
+    - "/ip4/0.0.0.0/tcp/9000"
+    - "/ip6/::/tcp/9000"
+
+  # Validator 3 external address
+  external_addr: "/ip4/VALIDATOR3_PUBLIC_IP/tcp/9000"
+
+  bootstrap_peers:
+    - "/ip4/VALIDATOR1_IP/tcp/9000/p2p/VALIDATOR1_PEER_ID"
+    - "/ip4/VALIDATOR2_IP/tcp/9000/p2p/VALIDATOR2_PEER_ID"
+
+  max_connections: 100
+  max_connections_per_peer: 3
+  dial_timeout: "30s"
+  connection_timeout: "10s"
+
+  discovery:
+    mdns:
+      enabled: false
+    dht:
+      enabled: true
+      mode: "server"
+
+  security:
+    tls_enabled: true
+    require_peer_authentication: true
+    rate_limit:
+      enabled: true
+      messages_per_second: 1000
+      burst: 2000
+
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8080
+
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://app.coinjecture.network"
+      - "https://dashboard.coinjecture.network"
+    allowed_methods: ["GET", "POST", "OPTIONS"]
+    allowed_headers: ["Content-Type", "Authorization"]
+    max_age: 3600
+
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+    burst: 200
+
+  auth:
+    enabled: true
+    jwt_secret: "${API_JWT_SECRET}"
+    token_expiry: "24h"
+
+  tls:
+    enabled: true
+    cert_file: "/etc/coinjecture/tls/server.crt"
+    key_file: "/etc/coinjecture/tls/server.key"
+
+  request_timeout: "30s"
+  max_request_body_size: 1048576
+
+database:
+  path: "/var/lib/coinjecture/network-a/validator3.db"
+  max_open_connections: 25
+  max_idle_connections: 5
+  connection_max_lifetime: "1h"
+  wal_mode: true
+  synchronous: "FULL"
+  cache_size: 102400
+  auto_vacuum: "INCREMENTAL"
+
+  backup:
+    enabled: true
+    interval: "1h"
+    retention: 168
+    path: "/var/backups/coinjecture/network-a"
+
+logger:
+  level: "info"
+  format: "json"
+  outputs:
+    - type: "stdout"
+    - type: "file"
+      path: "/var/log/coinjecture/validator3.log"
+      max_size: 100
+      max_backups: 30
+      max_age: 90
+      compress: true
+
+  fields:
+    service: "coinjectured"
+    network: "network-a"
+    validator: "validator3"
+    version: "4.5.0+"
+
+  sampling:
+    enabled: true
+    initial: 100
+    thereafter: 100
+
+monitoring:
+  prometheus:
+    enabled: true
+    host: "0.0.0.0"
+    port: 9090
+    path: "/metrics"
+
+  health_check:
+    enabled: true
+    port: 8081
+    path: "/health"
+
+  pprof:
+    enabled: false
+    host: "127.0.0.1"
+    port: 6060
+
+  alerts:
+    block_production_lag_threshold: "10s"
+    peer_count_min: 2
+    disk_usage_threshold: 0.90
+    memory_usage_threshold: 0.85
+
+mempool:
+  max_size: 10000
+  max_per_account: 100
+  tx_expiry: "24h"
+  min_gas_price: 1
+
+  priority:
+    enabled: true
+    sort_by: "gas_price"
+
+security:
+  firewall:
+    enabled: true
+    allowed_ports:
+      - 9000
+      - 8080
+      - 9090
+
+  key_management:
+    hsm_enabled: false
+    hsm_provider: "aws-kms"
+    rotation_enabled: false
+    rotation_interval: "90d"
+
+  audit:
+    enabled: true
+    log_path: "/var/log/coinjecture/audit.log"
+    events:
+      - "block_produced"
+      - "block_received"
+      - "validator_slashed"
+      - "api_auth_failure"
+
+operations:
+  shutdown_timeout: "30s"
+  pid_file: "/var/run/coinjecture/validator3.pid"
+
+  limits:
+    max_memory: "4GB"
+    max_cpu_percent: 80
+
+  restart:
+    enabled: true
+    max_retries: 3
+    backoff: "exponential"
+
+  maintenance:
+    enabled: true
+    schedule: "0 2 * * *"
+    duration: "1h"
+
+features:
+  enable_slashing: true
+  enable_checkpoints: true
+  enable_fork_choice: true
+  enable_state_pruning: false
+  enable_tx_indexing: true
+  enable_event_subscriptions: true
