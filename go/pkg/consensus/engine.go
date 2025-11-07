@@ -10,6 +10,7 @@ import (
 	"github.com/Quigles1337/COINjecture1337-REFACTOR/go/internal/logger"
 	"github.com/Quigles1337/COINjecture1337-REFACTOR/go/pkg/mempool"
 	"github.com/Quigles1337/COINjecture1337-REFACTOR/go/pkg/state"
+	"github.com/Quigles1337/COINjecture1337-REFACTOR/go/pkg/tokenomics"
 )
 
 // ConsensusConfig holds consensus engine configuration
@@ -38,6 +39,10 @@ type Engine struct {
 	// Validator slashing
 	slashing *SlashingManager
 
+	// Tokenomics - $BEANS distribution
+	economics  *tokenomics.Economics
+	distributor *tokenomics.RewardDistributor
+
 	// Block production
 	blockTimer *time.Ticker
 	ctx        context.Context
@@ -48,7 +53,7 @@ type Engine struct {
 	onReorg    func(oldTip *Block, newTip *Block, reorgDepth int) // Called on chain reorg
 }
 
-// NewEngine creates a new PoA consensus engine
+// NewEngine creates a new PoA consensus engine with tokenomics
 func NewEngine(
 	cfg ConsensusConfig,
 	mp *mempool.Mempool,
@@ -68,12 +73,30 @@ func NewEngine(
 		slashing.RegisterValidator(validator)
 	}
 
+	// Initialize tokenomics with Critical Complex Equilibrium
+	tokenCfg := tokenomics.DefaultTokenomicsConfig()
+	// Use first validator as treasury address for now (will be configurable)
+	if len(cfg.Validators) > 0 {
+		tokenCfg.TreasuryAddress = cfg.Validators[0]
+	}
+
+	economics := tokenomics.NewEconomics(tokenCfg, log)
+	distributor := tokenomics.NewRewardDistributor(economics, sm, tokenCfg.TreasuryAddress, log)
+
+	log.WithFields(logger.Fields{
+		"validator_share": fmt.Sprintf("%.2f%%", tokenCfg.ValidatorFeeShare*100),
+		"burn_share":      fmt.Sprintf("%.2f%%", tokenCfg.BurnFeeShare*100),
+		"treasury_share":  fmt.Sprintf("%.2f%%", tokenCfg.TreasuryFeeShare*100),
+	}).Info("$BEANS tokenomics initialized with Critical Complex Equilibrium")
+
 	return &Engine{
 		config:       cfg,
 		builder:      builder,
 		stateManager: sm,
 		log:          log,
 		slashing:     slashing,
+		economics:    economics,
+		distributor:  distributor,
 		blockHeight:  0,
 		ctx:          ctx,
 		cancel:       cancel,
@@ -216,11 +239,20 @@ func (e *Engine) produceBlock() error {
 		e.slashing.RecordBlockProduced(e.config.ValidatorKey)
 	}
 
+	// Distribute block rewards (base reward + transaction fees)
+	totalFees := block.GasUsed // Simple fee model: 1 wei per gas unit for now
+	if e.distributor != nil {
+		if err := e.distributor.DistributeBlockRewards(block.BlockNumber, e.config.ValidatorKey, totalFees); err != nil {
+			e.log.WithError(err).Error("Failed to distribute block rewards")
+		}
+	}
+
 	e.log.WithFields(logger.Fields{
 		"block_number": block.BlockNumber,
 		"block_hash":   fmt.Sprintf("%x", block.BlockHash[:8]),
 		"tx_count":     len(block.Transactions),
 		"gas_used":     block.GasUsed,
+		"fees":         totalFees,
 		"state_root":   fmt.Sprintf("%x", stateRoot[:8]),
 	}).Info("New block produced")
 

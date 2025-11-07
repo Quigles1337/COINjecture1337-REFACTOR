@@ -48,6 +48,12 @@ func main() {
 	}
 	fmt.Printf("✓ Validator key: %x\n\n", validatorKey)
 
+	// Initialize database schema
+	if err := state.InitializeDB(*dbPath); err != nil {
+		log.WithError(err).Fatal("Failed to initialize database schema")
+	}
+	fmt.Printf("✓ Database schema initialized\n")
+
 	// Create state manager
 	stateManager, err := state.NewStateManager(*dbPath, log)
 	if err != nil {
