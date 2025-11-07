@@ -180,15 +180,28 @@ func (sm *StateManager) UpdateAccount(address [32]byte, balance uint64, nonce ui
 	}
 
 	if rows == 0 {
-		// Account doesn't exist, create it
-		return sm.CreateAccount(address, balance)
-	}
+		// Account doesn't exist, create it (without locking again)
+		now := time.Now().Unix()
+		_, err = sm.db.Exec(`
+			INSERT INTO accounts (address, balance, nonce, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?)
+		`, addressHex, balance, nonce, now, now)
 
-	sm.log.WithFields(logger.Fields{
-		"address": fmt.Sprintf("%x", address[:8]),
-		"balance": balance,
-		"nonce":   nonce,
-	}).Debug("Account updated")
+		if err != nil {
+			return fmt.Errorf("failed to create account: %w", err)
+		}
+
+		sm.log.WithFields(logger.Fields{
+			"address": fmt.Sprintf("%x", address[:8]),
+			"balance": balance,
+		}).Info("Account created")
+	} else {
+		sm.log.WithFields(logger.Fields{
+			"address": fmt.Sprintf("%x", address[:8]),
+			"balance": balance,
+			"nonce":   nonce,
+		}).Debug("Account updated")
+	}
 
 	return nil
 }
