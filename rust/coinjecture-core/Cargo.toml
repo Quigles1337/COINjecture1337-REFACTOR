@@ -71,6 +71,10 @@ inherits = "release"
 # name = "benchmarks"
 # harness = false
 
+[[bin]]
+name = "generate-vectors"
+path = "bin/generate-vectors.rs"
+
 [package.metadata.maturin]
 name = "coinjecture_core"
 python-source = "python"

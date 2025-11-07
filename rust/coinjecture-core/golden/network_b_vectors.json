@@ -1,0 +1,735 @@
+warning: unused variable: `epoch_salt`
+   --> src\commitment.rs:121:5
+    |
+121 |     epoch_salt: &[u8; 32],
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_epoch_salt`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `parent_hash`
+   --> src\commitment.rs:122:5
+    |
+122 |     parent_hash: &[u8; 32],
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parent_hash`
+
+warning: unused variable: `block_index`
+   --> src\commitment.rs:123:5
+    |
+123 |     block_index: u64,
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_block_index`
+
+warning: enum `MerkleNode` is never used
+  --> src\merkle.rs:13:6
+   |
+13 | enum MerkleNode {
+   |      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: method `hash` is never used
+  --> src\merkle.rs:19:8
+   |
+18 | impl MerkleNode {
+   | --------------- method in this implementation
+19 |     fn hash(&self) -> &[u8; 32] {
+   |        ^^^^
+
+warning: `coinjecture-core` (lib) generated 5 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running `target\debug\generate-vectors.exe`
+{
+  "description": "Golden test vectors for Network B (Rust-integrated) consensus",
+  "generated_at": "2025-11-07T01:50:47.830199900+00:00",
+  "purpose": "Ensure cryptographic parity between Rust, Go, and Python implementations",
+  "total_vectors": 50,
+  "vectors": [
+    {
+      "expected_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "input_hex": "",
+      "operation": "SHA256",
+      "test_name": "sha256_empty_input"
+    },
+    {
+      "expected_hash": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+      "input_hex": "68656c6c6f20776f726c64",
+      "operation": "SHA256",
+      "test_name": "sha256_hello_world"
+    },
+    {
+      "expected_hash": "beb92758be066c61bc9af742fe707d7dd252c3e22c1bc1dd5028fcb454bfc63e",
+      "input_hex": "434f494e6a656374757265",
+      "operation": "SHA256",
+      "test_name": "sha256_coinjecture"
+    },
+    {
+      "expected_hash": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+      "input_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "operation": "SHA256",
+      "test_name": "sha256_zeros_32"
+    },
+    {
+      "expected_hash": "af9613760f72635fbdb44a5a0a63c39f12af30f950a6ee5c971be188e89c4051",
+      "input_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "operation": "SHA256",
+      "test_name": "sha256_ones_32"
+    },
+    {
+      "expected_hash": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+      "input_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "operation": "SHA256",
+      "test_name": "sha256_sequential_256"
+    },
+    {
+      "expected_hash": "3fa2329841713f5cb96c33bf198240039d079d1fc1921d5ffd4f6b1b515c85c1",
+      "input_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "input_size": 10240,
+      "operation": "SHA256",
+      "test_name": "sha256_large_10kb"
+    },
+    {
+      "expected_hash": "97a72eb94c949ae4dc09b4c322806dd1d93d2292d52d8c50b20ae036c14de7da",
+      "input_hex": "7b22626c6f636b5f6e756d626572223a313333372c2276616c696461746f72223a22616c696365222c22616d6f756e74223a313030303030307d",
+      "operation": "SHA256",
+      "test_name": "sha256_json_data"
+    },
+    {
+      "expected_hash": "a6d72baa3db900b03e70df880e503e9164013b4d9a470853edc115776323a098",
+      "input_hex": "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73",
+      "operation": "SHA256",
+      "test_name": "sha256_btc_genesis"
+    },
+    {
+      "expected_hash": "7c79fa91266ee96a8a2102c2c1723463a3cadb6d05c7bee3a9e8f2473cb41b77",
+      "input_hex": "48656c6c6f20e4b896e7958c20f09f9a80",
+      "operation": "SHA256",
+      "test_name": "sha256_unicode"
+    },
+    {
+      "expected_root": "0000000000000000000000000000000000000000000000000000000000000000",
+      "operation": "MERKLE",
+      "test_name": "merkle_empty",
+      "tx_hashes": []
+    },
+    {
+      "expected_root": "4242424242424242424242424242424242424242424242424242424242424242",
+      "operation": "MERKLE",
+      "test_name": "merkle_single_tx",
+      "tx_hashes": [
+        "4242424242424242424242424242424242424242424242424242424242424242"
+      ]
+    },
+    {
+      "expected_root": "5189c77d29fe5d546a045ec46986852785fea5c13ac7da9c115ff5fb6edf817c",
+      "operation": "MERKLE",
+      "test_name": "merkle_two_txs",
+      "tx_hashes": [
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "2222222222222222222222222222222222222222222222222222222222222222"
+      ]
+    },
+    {
+      "expected_root": "6f3229c7ace2d68a68865acf8263a53d093c4ff96202fa25a3497b6adf71e450",
+      "operation": "MERKLE",
+      "test_name": "merkle_three_txs",
+      "tx_hashes": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      ]
+    },
+    {
+      "expected_root": "ea59a369466be42d1a4783f09ae0721a5a157d6dba9c4b053d407b5a4b9af145",
+      "operation": "MERKLE",
+      "test_name": "merkle_four_txs",
+      "tx_hashes": [
+        "709b55bd3da0f5a838125bd0ee20c5bfdd7caba173912d4281cae816b79a201b",
+        "27ca64c092a959c7edc525ed45e845b1de6a7590d173fd2fad9133c8a779a1e3",
+        "1f3cb18e896256d7d6bb8c11a6ec71f005c75de05e39beae5d93bbd1e2c8b7a9",
+        "41b637cfd9eb3e2f60f734f9ca44e5c1559c6f481d49d6ed6891f3e9a086ac78"
+      ]
+    },
+    {
+      "expected_root": "76f41f978aafe116e5330b5be0d7659c99152055fd77a3a9739f8f85244d15f9",
+      "operation": "MERKLE",
+      "test_name": "merkle_eight_txs",
+      "tx_hashes": [
+        "709b55bd3da0f5a838125bd0ee20c5bfdd7caba173912d4281cae816b79a201b",
+        "27ca64c092a959c7edc525ed45e845b1de6a7590d173fd2fad9133c8a779a1e3",
+        "1f3cb18e896256d7d6bb8c11a6ec71f005c75de05e39beae5d93bbd1e2c8b7a9",
+        "41b637cfd9eb3e2f60f734f9ca44e5c1559c6f481d49d6ed6891f3e9a086ac78",
+        "a8c0cce8bb067e91cf2766c26be4e5d7cfba3d3323dc19d08a834391a1ce5acf",
+        "d20a624740ce1b7e2c74659bb291f665c021d202be02d13ce27feb067eeec837",
+        "281b9dba10658c86d0c3c267b82b8972b6c7b41285f60ce2054211e69dd89e15",
+        "df743dd1973e1c7d46968720b931af0afa8ec5e8412f9420006b7b4fa660ba8d"
+      ]
+    },
+    {
+      "expected_root": "c27bee07e5e58c41f2670220fee7e04c3690406bc98117b857fa851b3b90903c",
+      "first_tx_hash": "4244aecf5f1d65742e072520ed8394f04b2b8c1bb0c37aca5669eaaa1a3021fa",
+      "last_tx_hash": "dc7e241963a733f277cf1c606edfce43df687d65cf8358a0a5cf0f545d5b9bb6",
+      "operation": "MERKLE",
+      "test_name": "merkle_hundred_txs",
+      "tx_count": 100
+    },
+    {
+      "expected_root": "4bce718601d6c6a2544cd997fe48f26e636eb54c4d6bd3866281cacadf66e584",
+      "first_tx_hash": "bea05bf0bbbc38a4c2b4748b2f3ebeda2b8488d054c843717fe22e38bfdb0b6b",
+      "last_tx_hash": "ad23e60216e3187263abaab13c4eca1ab746ba6a01e8918b039f9e33dcbd6039",
+      "operation": "MERKLE",
+      "test_name": "merkle_thousand_txs",
+      "tx_count": 1000
+    },
+    {
+      "expected_hash": "9e28bebb26c909a59795061a5e1f71abfe29874a4e8e7afedfba453cf87285dc",
+      "header": {
+        "block_index": 0,
+        "codec_version": 1,
+        "commitment": "0000000000000000000000000000000000000000000000000000000000000000",
+        "difficulty_target": 100,
+        "extra_data": "",
+        "merkle_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "miner_address": "0000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": 0,
+        "parent_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "timestamp": 1704067200
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "block_header_genesis"
+    },
+    {
+      "expected_hash": "ab8340e6d73563fa2e391f215a33c5e49a1f89c284a767dcf8fe8de407733636",
+      "header": {
+        "block_index": 1,
+        "codec_version": 1,
+        "commitment": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "difficulty_target": 100,
+        "extra_data": "",
+        "merkle_root": "bbea820f07f7f89aeea1ab4a354ecea39f2f72accd05c64371522ee371cd0c48",
+        "miner_address": "f17a8e54c59b1bf9f8003faf01dde2d54c38a51e5d1de25a665f2de7df981716",
+        "nonce": 42,
+        "parent_hash": "9e28bebb26c909a59795061a5e1f71abfe29874a4e8e7afedfba453cf87285dc",
+        "timestamp": 1704067202
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "block_header_1"
+    },
+    {
+      "expected_hash": "ee23459fdb00b243c8962862060ca951ceb3cd47db40551b3d3057aeadf4cf3a",
+      "header": {
+        "block_index": 100,
+        "codec_version": 1,
+        "commitment": "41384829859dcd17a474542a3d3d42ab7573c7fdb7b0d496e747c98451a86ab4",
+        "difficulty_target": 1000,
+        "extra_data": "4e6574776f726b2042204d6967726174696f6e202d2076342e352e302b",
+        "merkle_root": "cdfc7c5a619294fb7f07ac9e69aaa45f436f97699704b463eadc100f628887f7",
+        "miner_address": "de50cbafd2d519b84956a5a7ae0a21d164b7dad8b422f8995df5b501d39cc75e",
+        "nonce": 1337,
+        "parent_hash": "14618b751626dc1bc5583cd53b99a59e4d34ada0f7a847fe203683aa01e7e864",
+        "timestamp": 1704067400
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "block_header_with_extra_data"
+    },
+    {
+      "expected_hash": "5400880cd94345a495e2e5c194febf57bbd7e9e374497bba20dca47526de2773",
+      "header": {
+        "block_index": 1000,
+        "codec_version": 1,
+        "commitment": "ed44244a1f01153bfe37fc03324b4bc5a18e5cb032fa19ed9c15ca8d818f4ed6",
+        "difficulty_target": 10000,
+        "extra_data": "434845434b504f494e54",
+        "merkle_root": "d038e15b9657285770cfd7f0a4d2c4fd6492142a800656491871c92520ffa3f7",
+        "miner_address": "2f46b0008bb6b6ef62dc7cadd0d22ec67ec639b7afa76f8d835c991122e48de2",
+        "nonce": 999999,
+        "parent_hash": "b3bebc796ef79515f8cf3655a1c708fcfca38101b83a9961fd476cea44c7c2f6",
+        "timestamp": 1704069200
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "block_header_checkpoint_1000"
+    },
+    {
+      "expected_hash": "3b679f9080dabda9419bfae30223484a50e24ea2ab089c524602fa24a965572d",
+      "header": {
+        "block_index": 161,
+        "codec_version": 1,
+        "commitment": "0e3d52e52f16e77b2314cbaf8f64132b9a604d68df92b0668ef948d46022307f",
+        "difficulty_target": 2300,
+        "extra_data": "",
+        "merkle_root": "b676e66c86c3fa6235b70054342165793b4edfe3d1d4aae7e7f182524f28827c",
+        "miner_address": "6caa69d4452ebd9cbc8feb4b2bb934753e276b0a94dfe6354b3ce1db2bba6526",
+        "nonce": 83935,
+        "parent_hash": "d7555671d3c70565fd32989579a7dba612f9ce672b79e105536a45f4f5de8bb2",
+        "timestamp": 1704067246
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_23"
+    },
+    {
+      "expected_hash": "0096f82830572fbb6d85b5215077c5d127677576df5a6e25bd8f1a2a35d2f778",
+      "header": {
+        "block_index": 168,
+        "codec_version": 1,
+        "commitment": "21d763579d6c3675c0eb411a32bcf3cde400f9494845a59ab0fbae430dbbf3a4",
+        "difficulty_target": 2400,
+        "extra_data": "65787472615f646174615f3234",
+        "merkle_root": "d962510a2b9c52828b4c3a9b59e9958e56e2cca828400a567639bc2efcd7927e",
+        "miner_address": "b971dd42f0dc2b06ea7ffc5314f16a89b8b285ea66a78fa36be60c4f42a72317",
+        "nonce": 96280,
+        "parent_hash": "e094aaf60cec9f7ff7f2fc7b5198107ed9117d30f6d29877540dd3e3a6566f13",
+        "timestamp": 1704067248
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_24"
+    },
+    {
+      "expected_hash": "c8e430680850238e977085a5fe1e5f0b28c5454108edc2a91a9cfbcd61a27053",
+      "header": {
+        "block_index": 175,
+        "codec_version": 1,
+        "commitment": "d495e97d27dab5330b6a4426d56d604b13313788f4899f300340de19eb62e738",
+        "difficulty_target": 2500,
+        "extra_data": "",
+        "merkle_root": "ca8c88501c72d191877c6f0049887855422accba78d5595fd4269fe6af854cb7",
+        "miner_address": "55eb0d6975b95d97b22aecd4218e8552ffb0eb773489cbc4f5683366e68c109b",
+        "nonce": 8625,
+        "parent_hash": "6428429041dc91a98529ef2e27ec772e3a0e1b1537697cd2d51a23a70b5be332",
+        "timestamp": 1704067250
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_25"
+    },
+    {
+      "expected_hash": "e185ef84e9f3b76c611d692c4f3ff16bb50cc842fbb1026fb90689dbc6142a00",
+      "header": {
+        "block_index": 182,
+        "codec_version": 1,
+        "commitment": "c497debac03ac39df9440d00bc06654c9188bf219221a74ee354988eb50962a7",
+        "difficulty_target": 2600,
+        "extra_data": "",
+        "merkle_root": "bdd90d7e580da305f1735424306620d34c905f1247aac673818ad21fafc2ce98",
+        "miner_address": "1c2b2f7d94d01e5e7005451fd5765c9285df5e7d947e8ebdc0be98963a7890ed",
+        "nonce": 20970,
+        "parent_hash": "28b95e196c184e48f98380f28e86bfda7c60b710e8cfb99cc093d8bf44db913e",
+        "timestamp": 1704067252
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_26"
+    },
+    {
+      "expected_hash": "00794d648840cde9afab7ba5c5e3b919d3f9989409683a60de36e1f3ae275f8b",
+      "header": {
+        "block_index": 189,
+        "codec_version": 1,
+        "commitment": "4042e6c77b19f7d9285e335fc6658d3c156d0eae3b806e03d68ab22468cf422b",
+        "difficulty_target": 2700,
+        "extra_data": "65787472615f646174615f3237",
+        "merkle_root": "346d5ad0890621a8c1dd1aba2386fc322f9c4fdae95e9966582e0ce8313959a5",
+        "miner_address": "fe9fc584de23ea22483b637b203d1e8898c1844a738eba634158d7dc2f5cd2d3",
+        "nonce": 33315,
+        "parent_hash": "c9bf3cf913fde93bcbef54b4a1f91129f1c9fbac3d68b9f50e753f3ffb95ac78",
+        "timestamp": 1704067254
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_27"
+    },
+    {
+      "expected_hash": "500246cb39f40da90fe0b4de3e13b307ed9e477568259015a47c8183d4cb7472",
+      "header": {
+        "block_index": 196,
+        "codec_version": 1,
+        "commitment": "92ede6c41b4602c5eb608140b10f20ef2bd50e68b998d719f2d412869337f727",
+        "difficulty_target": 2800,
+        "extra_data": "",
+        "merkle_root": "dc8c0a2b526ef86ae0966ea632b1c3a7898c9ee1d567f9e81afb3fa5683a20a3",
+        "miner_address": "288d9f78f398850ee10d1e44f72db6c46b474dc8eddb4cfa00ba4355dc36c095",
+        "nonce": 45660,
+        "parent_hash": "6e8bdf75b21ff32aebeb39085c08e8ac5485266204bdfb28c49d3775827ada71",
+        "timestamp": 1704067256
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_28"
+    },
+    {
+      "expected_hash": "35d93c64a634435edef4cec65782a8333cbbb3710a62421f589587ca7491410f",
+      "header": {
+        "block_index": 203,
+        "codec_version": 1,
+        "commitment": "674087420af941a11485a50c4ec312ebafeba48669c1d22d43a8c7cf9e6cd491",
+        "difficulty_target": 2900,
+        "extra_data": "",
+        "merkle_root": "54177440b455d8e892e91548f5ea654c85aa86019717075bf90ecc502f77eb70",
+        "miner_address": "c0d3deb8a0ac48e66920cbca827da7e6bafda8f93b67198d0564f0a6df9a0de6",
+        "nonce": 58005,
+        "parent_hash": "437982fd383ef90476055fcb8ba66b4dda02583c1c2cd21f6a122b6ed9c0acc9",
+        "timestamp": 1704067258
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_29"
+    },
+    {
+      "expected_hash": "1061793e22f23a20a9733a581065a7f867dc3c20bdf1e3b05029ec0b3ab26662",
+      "header": {
+        "block_index": 210,
+        "codec_version": 1,
+        "commitment": "4f8f9489c8f9d53566a9014fbfecdf176d21d9ec8d470e22e08e1e24290706c8",
+        "difficulty_target": 3000,
+        "extra_data": "65787472615f646174615f3330",
+        "merkle_root": "cf6a3e1cddd1b95887675c2f9610ea043a6a12347bd66f614c1878b1bf4ff1fd",
+        "miner_address": "3599ee0aabe158c687edf8c6de921f38a3f5bd5bbeb4eb2a774665779b3240fb",
+        "nonce": 70350,
+        "parent_hash": "cfcab244bd181d6c9e31d5f7fe935b635fca381e96b5ccc55edfb279f8c24514",
+        "timestamp": 1704067260
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_30"
+    },
+    {
+      "expected_hash": "855e6bf0440995df54002a850ed3d26c3c217f166f55ff1bfcbb152d2b639d4b",
+      "header": {
+        "block_index": 217,
+        "codec_version": 1,
+        "commitment": "32af85ad10f1a0643927cfb24034c871f75a00e11ef02275249f23357afca1cf",
+        "difficulty_target": 3100,
+        "extra_data": "",
+        "merkle_root": "024513802a23c180622f9baab863760324bf1c581484ae2609c1275c779f386a",
+        "miner_address": "aa998328fc71305518f41b235775c5ddb95d2566c66784e3cbeae2b9ac5a5ac9",
+        "nonce": 82695,
+        "parent_hash": "2f308864d9a5c16536f92a568798116990caeadd890529774ea3226b37727152",
+        "timestamp": 1704067262
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_31"
+    },
+    {
+      "expected_hash": "b891e41b9420ea7893e81bfd2f62db82003ffc5ef32d6b7de815b9bf169d945d",
+      "header": {
+        "block_index": 224,
+        "codec_version": 1,
+        "commitment": "e41f6628a19d88947365b00d8aa59caab948c62deeafa6a1203b4b8c048c280c",
+        "difficulty_target": 3200,
+        "extra_data": "",
+        "merkle_root": "bb496845e19f40d81a0a00cf17a691816361585789598eb356e454b1afb97d50",
+        "miner_address": "e4342d2a7e3cd8c488f5f682fbcf00251a3e3fb0ab689736ed0698309dae0590",
+        "nonce": 95040,
+        "parent_hash": "4549673ab9b567d5a43dadff314b0b55c732e33ea51584b68832365def377ca2",
+        "timestamp": 1704067264
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_32"
+    },
+    {
+      "expected_hash": "bc2ff5550a98ff0ff53d38616b8303e2f2d86ba0cca177780a4bcd590e581ea0",
+      "header": {
+        "block_index": 231,
+        "codec_version": 1,
+        "commitment": "82395ee155b6f782cab1f9439e26616a9eac1eaaafb012befa0c059633ce0aed",
+        "difficulty_target": 3300,
+        "extra_data": "65787472615f646174615f3333",
+        "merkle_root": "2a2c1445201554a0630de38e4da3f4a12a19438ec9a569dbb7244a8a907fcf3b",
+        "miner_address": "88873542736020d9bf1d0c0bf0359c5e838cd37174507a877e740b70ce1a1415",
+        "nonce": 7385,
+        "parent_hash": "5450443676e1c444812c5a436ac3ddb66eb516eddcbecd03a0da9ea677bee047",
+        "timestamp": 1704067266
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_33"
+    },
+    {
+      "expected_hash": "9abf21e7343b5cab82386d62299625e5205421a1c923410c6fc3b3b91d294671",
+      "header": {
+        "block_index": 238,
+        "codec_version": 1,
+        "commitment": "4afc0c9b2d836d3e3ec1b607dbc1316328a585cc2e0870cef70f1f48b2691891",
+        "difficulty_target": 3400,
+        "extra_data": "",
+        "merkle_root": "5fdd182eb475cfd698978314ca3968d5d2b67ad95250e80b3eb401284624bd23",
+        "miner_address": "42e7154498c298700ed78e3b71483a043ad26f179997e5fd59a32513f5c6bfc1",
+        "nonce": 19730,
+        "parent_hash": "aaffa26c97a4928b8214918486296c288717b2a4f4d2013eb88eba3c783a6688",
+        "timestamp": 1704067268
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_34"
+    },
+    {
+      "expected_hash": "23afa32abb2654b0d9fc48862116d7b6a682f81de7fe0db18b600cb40bc5eb6f",
+      "header": {
+        "block_index": 245,
+        "codec_version": 1,
+        "commitment": "eb319c95e5e421f0be30049cd6a8b0353e7798eb972b38ec5c41a235c42d1f8b",
+        "difficulty_target": 3500,
+        "extra_data": "",
+        "merkle_root": "f1f7067c7a00de198e4a954c392685790dfdc5ec9492b8501aef0cbcaecebd94",
+        "miner_address": "ca3b46e5397931feb8f502bc63128f339bfc13fc53ea37b27458a5399e872c70",
+        "nonce": 32075,
+        "parent_hash": "b906db58438923fe79f696b6160284e8412650a24e36771df878b4ef4cba2610",
+        "timestamp": 1704067270
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_35"
+    },
+    {
+      "expected_hash": "ffe33e9a17aa48ac74babeb1df94c7dbe80b8818e8f8edee5a80907ea6c286c8",
+      "header": {
+        "block_index": 252,
+        "codec_version": 1,
+        "commitment": "a41a0ebca3ab38eb71abf00f03f4500af31709f010a28d6967d071237aeecc52",
+        "difficulty_target": 3600,
+        "extra_data": "65787472615f646174615f3336",
+        "merkle_root": "02440fd83073cef0accd66ad308e0c6ebce1312461c72edee19a2253141ffeb9",
+        "miner_address": "2db72fd9f007631172db6de46ec6af5ec12860ccde0221a0177c83958ae3df48",
+        "nonce": 44420,
+        "parent_hash": "8ead96d0e0485f63b09d006db4a2def4a1e8ee0d53ce345e17420b559778c53c",
+        "timestamp": 1704067272
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_36"
+    },
+    {
+      "expected_hash": "873692d6f6297ff3014e362c028f673a0296d6279599d150ea7d84c368935df2",
+      "header": {
+        "block_index": 259,
+        "codec_version": 1,
+        "commitment": "64ab4e5313f02e3c29345dc48ce48b6e8a0853a33a00b23d824a47734f3e1e42",
+        "difficulty_target": 3700,
+        "extra_data": "",
+        "merkle_root": "d7377fa0ecb967fc5342a36587e68249b33e05ae7764c0f2bec7e7477ee74671",
+        "miner_address": "0a9ca59bd69000b943caf9d904572fade23c0615cec2404afee8a531c313bc2d",
+        "nonce": 56765,
+        "parent_hash": "36d13bb2c4c0880be62cfa3e6e0df61ed5362da223e2d80693c50387f4ff214d",
+        "timestamp": 1704067274
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_37"
+    },
+    {
+      "expected_hash": "8e8b33c8116e8560a96c82d2f7e9b630a5b33129d5f5dd1df2f081250a450c30",
+      "header": {
+        "block_index": 266,
+        "codec_version": 1,
+        "commitment": "2e6d50a8377c89ac5051b9dcdbff51929466554469e101114215758d7da59820",
+        "difficulty_target": 3800,
+        "extra_data": "",
+        "merkle_root": "397e437887056ec9c54804b79293e5c0d504607cbe4a21728f3e646712cb7604",
+        "miner_address": "618d0a9ef8636b6226c0f4f665019a5a36baee51895df7d09f334fcea804b36f",
+        "nonce": 69110,
+        "parent_hash": "97bd706f398986b5e0d56932527fcb479ae24495ac412690d69919be3caa1aa2",
+        "timestamp": 1704067276
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_38"
+    },
+    {
+      "expected_hash": "4591e7d8b3925994d58e35d64e1fc1585369b7ac221730e2c65559c445af4682",
+      "header": {
+        "block_index": 273,
+        "codec_version": 1,
+        "commitment": "539b2784fd6d226c6f80df274132e633a09da6cde509217653791ef0d0a63cbf",
+        "difficulty_target": 3900,
+        "extra_data": "65787472615f646174615f3339",
+        "merkle_root": "eacc0d601cc3f09b787bd4383084cd524429a81ae455a68129b18d1b94c0c704",
+        "miner_address": "6fb813d3358aa90adf351cb2013adb86f158717a19ab0c023f13b6b516f109d3",
+        "nonce": 81455,
+        "parent_hash": "38f218111d8cde1ffed8ce9ed112dd57550d800fbbc89b051c990bacf98f3af6",
+        "timestamp": 1704067278
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_39"
+    },
+    {
+      "expected_hash": "7b922b19912ff3b37333a6994561b9476fb6561738030d6da5041a7126ab43b0",
+      "header": {
+        "block_index": 280,
+        "codec_version": 1,
+        "commitment": "52390373f02df3dc82f1c8969215573a83f2dbd82cf2ca894f36c1d422be5d1d",
+        "difficulty_target": 4000,
+        "extra_data": "",
+        "merkle_root": "c69f4ca2aa3a37de00f0e5ba972e57e5f88c84b76e47370c9675b0a1b070e675",
+        "miner_address": "9b9803f9e9db9272431c87762368a326c62fc8c24da2d5ba0997a36f89062ff7",
+        "nonce": 93800,
+        "parent_hash": "9c60b4e69c58f8b279faa02adfc9a545a182d4865fa803b05c1a54f19a09587e",
+        "timestamp": 1704067280
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_40"
+    },
+    {
+      "expected_hash": "3a07760040f87c18dfbd7ffa7e66f96f9c085091ba912150bf3b14bba02c4511",
+      "header": {
+        "block_index": 287,
+        "codec_version": 1,
+        "commitment": "d497faab7b1fbb12f2ef65bdd7d1813130b6c32451ba13d16271226acae74549",
+        "difficulty_target": 4100,
+        "extra_data": "",
+        "merkle_root": "9492c3b344c21c10668f1d4ecd36ef4dcfc77d4e3563467e2f9e5567d575da84",
+        "miner_address": "ad90100fd5260ad43c2a75cecf3921a234053f652b348e311f6477b62bb30a2a",
+        "nonce": 6145,
+        "parent_hash": "bacc87852fd5b8d4f69ce9294d39202f1038b567482471689d6d5527537d23c0",
+        "timestamp": 1704067282
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_41"
+    },
+    {
+      "expected_hash": "caa0ca9cbaa6c7a53963b33b1143688a557ee9d0e68c328433df19503873415b",
+      "header": {
+        "block_index": 294,
+        "codec_version": 1,
+        "commitment": "060ac17215a295de5247e583b259e2e31f2e0aa2d7fd92472a6954f0a04fa5b0",
+        "difficulty_target": 4200,
+        "extra_data": "65787472615f646174615f3432",
+        "merkle_root": "e30fbf31255376bc0f25792c73d2dfd5fe23e357298c6d50502490e7dacaf40d",
+        "miner_address": "04f2ce22bc1a9388557e285a9958e2a5313fb57d3ff929f10b5919283c1277de",
+        "nonce": 18490,
+        "parent_hash": "b92aada7ec6ad4856121e8173297486e4d350f0658e390e197d3e6d508f37c0f",
+        "timestamp": 1704067284
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_42"
+    },
+    {
+      "expected_hash": "aff1c78b4f107ca10b1fc70d1d462d0748287377cbd6ec90d894beb30ac194a4",
+      "header": {
+        "block_index": 301,
+        "codec_version": 1,
+        "commitment": "e9b175bcbdefbb49e365c058c0e1c38eed2e15308d61ac4964ac8992494ae305",
+        "difficulty_target": 4300,
+        "extra_data": "",
+        "merkle_root": "d3040a4b51bc66ea8524397d25f854b6b43426f2a3d30a6a9563cc9162c6e5c6",
+        "miner_address": "04403a90a4e6d15228a86ce0d73b241b090ef60b7893ad5a3e8961596d84c9ad",
+        "nonce": 30835,
+        "parent_hash": "e7f01361afd6662b1a38365c8b0162b829756408c17f95a6ddc0d377de2dac5d",
+        "timestamp": 1704067286
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_43"
+    },
+    {
+      "expected_hash": "bc0a98d8ff40e21d3005bcd087925c7b29d7eefe6831c4ea801db1c06d3cfb5c",
+      "header": {
+        "block_index": 308,
+        "codec_version": 1,
+        "commitment": "bf5063ad4b522424466e5ee4b2c594d6708962875be5a263765b6f6a16cf6aba",
+        "difficulty_target": 4400,
+        "extra_data": "",
+        "merkle_root": "bcc3367e974f2ce90f805f9d11aabcf01faf06ff9311b6581758aac01e906b6e",
+        "miner_address": "9b5a6a4a5550010b189f3119d882e2b031d4660b953613e7e439397fe34abdea",
+        "nonce": 43180,
+        "parent_hash": "ee4715d8b4a9cea6af9f09d2a380e1c89a1724993005d95dc508e74e2966eb1f",
+        "timestamp": 1704067288
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_44"
+    },
+    {
+      "expected_hash": "05f42fd7e0ef19b67d4740c6ac44e2bfa8f791d58862287ea47a68e7c5e53757",
+      "header": {
+        "block_index": 315,
+        "codec_version": 1,
+        "commitment": "e1bff6370fc39df4c8d6ae794e25e3098ed94dc958267b120b61f44516f69885",
+        "difficulty_target": 4500,
+        "extra_data": "65787472615f646174615f3435",
+        "merkle_root": "602fb2cf472d738cbcb438fff7807d87c712f12746f255e271a66b254efb920e",
+        "miner_address": "cef175241a9018b88ba525af63e9238c6c1370e58a9375822f1d49b17906de0c",
+        "nonce": 55525,
+        "parent_hash": "754e7ceea9b59bacb7a4fbfaca2e6705eaa141eeb0ac9b49086d3c512837df2a",
+        "timestamp": 1704067290
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_45"
+    },
+    {
+      "expected_hash": "aa6ca5f0e62b02f1e357bec6fc08ea35b8fd458b2921e81f471d3f7462e0f457",
+      "header": {
+        "block_index": 322,
+        "codec_version": 1,
+        "commitment": "12c9d6acb7e247a8e568b8276b555ffd4d792e42b65f7e1d7f1ed89b5a702775",
+        "difficulty_target": 4600,
+        "extra_data": "",
+        "merkle_root": "5c2f0bce65e643569221bb56ef058085e1476faff9b80969f1c976c076d270f4",
+        "miner_address": "0a338da5e3ec9f8dc03fb218ba60752673451ee3f64ff54d216337df8a958594",
+        "nonce": 67870,
+        "parent_hash": "a666efbfecb46af8a9aa64bac385ce797531f6dcd2adafe7638848ee0ada60bc",
+        "timestamp": 1704067292
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_46"
+    },
+    {
+      "expected_hash": "2538badd3d098465da1bb945c778b3892a08568b377b57f0e915f2f8dc695e02",
+      "header": {
+        "block_index": 329,
+        "codec_version": 1,
+        "commitment": "fde76b9f693a4c6f24aea3a37e1b2a5b25417b41f52c0305545373be2f1e7e53",
+        "difficulty_target": 4700,
+        "extra_data": "",
+        "merkle_root": "f4729e29abb27aa372c55ac803ebbbe81399007e3904bcca1774f70c2003beb0",
+        "miner_address": "d6441b4564c30be6d1aec7f7bb33f5b4576de32bab79e7f42a266af418a01412",
+        "nonce": 80215,
+        "parent_hash": "cb546b21448d1c1ca9b33d0a446eea6f7fa6a5662bec3f46a95153e775a9cadb",
+        "timestamp": 1704067294
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_47"
+    },
+    {
+      "expected_hash": "c078e16ee8320a0860ad47b72a1f1f17a9c3782cf74e79f994cff7c8be4636c5",
+      "header": {
+        "block_index": 336,
+        "codec_version": 1,
+        "commitment": "892ea294483be5567b20290719677d7bf04bc2765581a422b3c9227c29e10672",
+        "difficulty_target": 4800,
+        "extra_data": "65787472615f646174615f3438",
+        "merkle_root": "91dabfe92e5e03c512ed7de2ecb093e385c55a4a6ee7db84ae4a264524479a86",
+        "miner_address": "73481a2a9926366bbcf818b2ef305528b563f9fb381d2712e2f15fdbe1ae796a",
+        "nonce": 92560,
+        "parent_hash": "76d20b303705fc8815ee9655008b7447d431e7b0fc099600711e171196cf4852",
+        "timestamp": 1704067296
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_48"
+    },
+    {
+      "expected_hash": "ba47a7e4e4a7fd011d7fb54ea72ac973865fed347fa00f65feb5dd3c5334e9c0",
+      "header": {
+        "block_index": 343,
+        "codec_version": 1,
+        "commitment": "778a88f6efba08c0880860574997f5ad157d8e62cff1d68a66745e4351c8f1a3",
+        "difficulty_target": 4900,
+        "extra_data": "",
+        "merkle_root": "7ecdc7ac46a252ce8a86870fd0b8eceec5e04ef02cd2d565d860a3d92c8e386b",
+        "miner_address": "9feab4ecd2502676c1f87322159ebd6937d80365d36a899c005e68c4ccb9905d",
+        "nonce": 4905,
+        "parent_hash": "2be321e64cdceaf2655c75f95c52ce6a03d7a325f986020773157e8703022380",
+        "timestamp": 1704067298
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_49"
+    },
+    {
+      "expected_hash": "8b96a14df4f8144b1f477ea5c704ae0712bd18c0b191bd85f9438f744aa0ce01",
+      "header": {
+        "block_index": 350,
+        "codec_version": 1,
+        "commitment": "f6cf577efb86d0d56780e7747e337bf179f6e04ae98ca905df5d9d31ec5443f9",
+        "difficulty_target": 5000,
+        "extra_data": "",
+        "merkle_root": "d059d1dd1a9c597c7894c135a20e69ac802c0dbc5df06485e0d2079215733aff",
+        "miner_address": "62fe617713763e94b139c8c02a14793b51e58d90f6037c6f8b56e519ee611776",
+        "nonce": 17250,
+        "parent_hash": "46526320bbebd34be2a5087dcbfc433f6b86ce30424f76906513cfe71bf544c2",
+        "timestamp": 1704067300
+      },
+      "operation": "BLOCK_HEADER",
+      "test_name": "stress_test_vector_50"
+    }
+  ],
+  "version": "4.5.0+"
+}
+
+✅ Generated 50 golden test vectors for Network B
+   - SHA-256: 10 vectors
+   - Merkle roots: 8 vectors
+   - Block headers: 32 vectors
+   Total: 50 vectors
+
