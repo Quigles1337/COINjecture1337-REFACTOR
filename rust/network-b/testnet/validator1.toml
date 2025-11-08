@@ -1,0 +1,32 @@
+# COINjecture Network B - Validator 1 Configuration
+# Testnet Launch Configuration
+
+[network]
+chain_id = "coinject-testnet-b1"
+data_dir = "./testnet/validator1/data"
+
+[mining]
+enabled = true
+# Genesis miner address (32 bytes hex)
+# This is validator 1's address - Genesis will credit 21M BEANS here
+miner_address = "0000000000000000000000000000000000000000000000000000000000000001"
+
+[consensus]
+# Lower difficulty for testnet (2 leading zeros)
+difficulty = 2
+# Faster blocks for testing (30 seconds)
+block_time = 30
+
+[p2p]
+# Validator 1 listens on default port
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+# No bootnodes for first validator (it's the genesis)
+bootnodes = []
+
+[rpc]
+# JSON-RPC API endpoint
+listen_addr = "127.0.0.1:9933"
+enabled = true
+
+[logging]
+level = "info"

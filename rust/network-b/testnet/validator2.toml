@@ -1,0 +1,29 @@
+# COINjecture Network B - Validator 2 Configuration
+# Testnet Launch Configuration
+
+[network]
+chain_id = "coinject-testnet-b1"
+data_dir = "./testnet/validator2/data"
+
+[mining]
+enabled = true
+# Validator 2's address
+miner_address = "0000000000000000000000000000000000000000000000000000000000000002"
+
+[consensus]
+difficulty = 2
+block_time = 30
+
+[p2p]
+# Validator 2 listens on different port
+listen_addr = "/ip4/0.0.0.0/tcp/30334"
+# Bootstrap from validator 1
+# Note: Replace PEER_ID_1 with actual peer ID from validator 1 logs
+bootnodes = ["/ip4/127.0.0.1/tcp/30333/p2p/PEER_ID_1"]
+
+[rpc]
+listen_addr = "127.0.0.1:9934"
+enabled = true
+
+[logging]
+level = "info"
