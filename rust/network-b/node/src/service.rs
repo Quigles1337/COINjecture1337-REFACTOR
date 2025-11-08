@@ -154,6 +154,7 @@ impl CoinjectNode {
 
         let rpc_state = Arc::new(RpcServerState {
             account_state: Arc::clone(&self.state),
+            blockchain: Arc::clone(&self.chain) as Arc<dyn coinject_rpc::BlockchainReader>,
             marketplace: Arc::clone(&self.marketplace),
             chain_id: self.config.chain_id.clone(),
             best_height: self.chain.best_height_ref(),

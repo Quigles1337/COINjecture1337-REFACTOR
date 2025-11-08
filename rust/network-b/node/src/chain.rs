@@ -237,3 +237,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
+
+// Implement BlockchainReader trait for RPC access
+impl coinject_rpc::BlockchainReader for ChainState {
+    fn get_block_by_height(&self, height: u64) -> Result<Option<Block>, String> {
+        self.get_block_by_height(height).map_err(|e| e.to_string())
+    }
+
+    fn get_block_by_hash(&self, hash: &Hash) -> Result<Option<Block>, String> {
+        self.get_block_by_hash(hash).map_err(|e| e.to_string())
+    }
+
+    fn get_header_by_height(&self, height: u64) -> Result<Option<BlockHeader>, String> {
+        self.get_header_by_height(height).map_err(|e| e.to_string())
+    }
+}

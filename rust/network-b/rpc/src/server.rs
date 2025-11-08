@@ -15,6 +15,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Trait for reading blockchain data (allows node to provide chain state without circular dependency)
+pub trait BlockchainReader: Send + Sync {
+    fn get_block_by_height(&self, height: u64) -> Result<Option<Block>, String>;
+    fn get_block_by_hash(&self, hash: &Hash) -> Result<Option<Block>, String>;
+    fn get_header_by_height(&self, height: u64) -> Result<Option<BlockHeader>, String>;
+}
+
 /// RPC error codes
 const INVALID_PARAMS: i32 = -32602;
 const INTERNAL_ERROR: i32 = -32603;
@@ -113,6 +120,7 @@ pub trait CoinjectRpc {
 /// RPC server state
 pub struct RpcServerState {
     pub account_state: Arc<AccountState>,
+    pub blockchain: Arc<dyn BlockchainReader>,
     pub marketplace: Arc<RwLock<ProblemMarketplace>>,
     pub chain_id: String,
     pub best_height: Arc<RwLock<u64>>,
@@ -240,20 +248,26 @@ impl CoinjectRpcServer for RpcServerImpl {
         })
     }
 
-    async fn get_block(&self, _height: u64) -> RpcResult<Option<Block>> {
-        // TODO: Implement block storage and retrieval
-        // For now, return None
-        Ok(None)
+    async fn get_block(&self, height: u64) -> RpcResult<Option<Block>> {
+        self.state
+            .blockchain
+            .get_block_by_height(height)
+            .map_err(|e| ErrorObjectOwned::owned(INTERNAL_ERROR, e, None::<()>))
     }
 
     async fn get_latest_block(&self) -> RpcResult<Option<Block>> {
-        // TODO: Implement block storage
-        Ok(None)
+        let best_height = *self.state.best_height.read().await;
+        self.state
+            .blockchain
+            .get_block_by_height(best_height)
+            .map_err(|e| ErrorObjectOwned::owned(INTERNAL_ERROR, e, None::<()>))
     }
 
-    async fn get_block_header(&self, _height: u64) -> RpcResult<Option<BlockHeader>> {
-        // TODO: Implement block header retrieval
-        Ok(None)
+    async fn get_block_header(&self, height: u64) -> RpcResult<Option<BlockHeader>> {
+        self.state
+            .blockchain
+            .get_header_by_height(height)
+            .map_err(|e| ErrorObjectOwned::owned(INTERNAL_ERROR, e, None::<()>))
     }
 
     async fn get_chain_info(&self) -> RpcResult<ChainInfo> {
@@ -334,6 +348,23 @@ impl RpcServer {
 mod tests {
     use super::*;
 
+    // Mock blockchain reader for tests
+    struct MockBlockchainReader;
+
+    impl BlockchainReader for MockBlockchainReader {
+        fn get_block_by_height(&self, _height: u64) -> Result<Option<Block>, String> {
+            Ok(None)
+        }
+
+        fn get_block_by_hash(&self, _hash: &Hash) -> Result<Option<Block>, String> {
+            Ok(None)
+        }
+
+        fn get_header_by_height(&self, _height: u64) -> Result<Option<BlockHeader>, String> {
+            Ok(None)
+        }
+    }
+
     #[test]
     fn test_address_parsing() {
         let temp_dir = std::env::temp_dir().join("coinject-rpc-test-addr");
@@ -341,6 +372,7 @@ mod tests {
 
         let state = Arc::new(RpcServerState {
             account_state: Arc::new(AccountState::new(&temp_dir).unwrap()),
+            blockchain: Arc::new(MockBlockchainReader) as Arc<dyn BlockchainReader>,
             marketplace: Arc::new(RwLock::new(ProblemMarketplace::new())),
             chain_id: "test".to_string(),
             best_height: Arc::new(RwLock::new(0)),
@@ -366,6 +398,7 @@ mod tests {
 
         let state = Arc::new(RpcServerState {
             account_state: Arc::new(AccountState::new(&temp_dir).unwrap()),
+            blockchain: Arc::new(MockBlockchainReader) as Arc<dyn BlockchainReader>,
             marketplace: Arc::new(RwLock::new(ProblemMarketplace::new())),
             chain_id: "test".to_string(),
             best_height: Arc::new(RwLock::new(0)),
