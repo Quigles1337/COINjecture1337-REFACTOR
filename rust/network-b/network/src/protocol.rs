@@ -207,7 +207,10 @@ impl NetworkService {
 
     /// Start listening on configured address
     pub fn start_listening(&mut self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let listen_addr: libp2p::Multiaddr = addr.parse()?;
+        println!("   Parsing multiaddr: {}", addr);
+        let listen_addr: libp2p::Multiaddr = addr.parse()
+            .map_err(|e| format!("Failed to parse multiaddr '{}': {:?}", addr, e))?;
+        println!("   Parsed multiaddr: {}", listen_addr);
         self.swarm.listen_on(listen_addr)?;
         Ok(())
     }

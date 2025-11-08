@@ -10,20 +10,34 @@ Wait for the build to complete (~2-5 minutes).
 
 ## Step 2: Start the Nodes
 
-Open **3 separate terminal windows** and run:
+**IMPORTANT:** Use **PowerShell** or **CMD**, NOT Git Bash (Git Bash converts `/ip4` paths incorrectly on Windows)
+
+Open **3 separate PowerShell windows** and run:
 
 ### Terminal 1 - Node 1 (Bootnode + Miner)
-```bash
+```powershell
+.\test-node1.ps1
+```
+Or with CMD:
+```cmd
 test-node1.bat
 ```
 
 ### Terminal 2 - Node 2 (Miner)
-```bash
+```powershell
+.\test-node2.ps1
+```
+Or with CMD:
+```cmd
 test-node2.bat
 ```
 
 ### Terminal 3 - Node 3 (Validator)
-```bash
+```powershell
+.\test-node3.ps1
+```
+Or with CMD:
+```cmd
 test-node3.bat
 ```
 
