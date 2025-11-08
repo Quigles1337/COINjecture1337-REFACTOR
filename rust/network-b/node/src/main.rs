@@ -10,6 +10,7 @@ mod validator;
 use config::NodeConfig;
 use service::CoinjectNode;
 use tokio::signal;
+use tokio::task::LocalSet;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -29,29 +30,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse configuration
     let config = NodeConfig::parse_args();
 
-    // Create and start node
-    let mut node = CoinjectNode::new(config).await?;
-    node.start().await?;
+    // Create LocalSet for spawn_local tasks
+    let local = LocalSet::new();
 
-    // Wait for shutdown signal (Ctrl+C)
-    match signal::ctrl_c().await {
-        Ok(()) => {
-            println!();
-            println!("📡 Received shutdown signal (Ctrl+C)");
-            node.shutdown();
+    // Run node within LocalSet context
+    local.run_until(async move {
+        // Create and start node
+        let mut node = CoinjectNode::new(config).await?;
+        node.start().await?;
+
+        // Wait for shutdown signal (Ctrl+C)
+        match signal::ctrl_c().await {
+            Ok(()) => {
+                println!();
+                println!("📡 Received shutdown signal (Ctrl+C)");
+                node.shutdown();
+            }
+            Err(err) => {
+                eprintln!("Unable to listen for shutdown signal: {}", err);
+            }
         }
-        Err(err) => {
-            eprintln!("Unable to listen for shutdown signal: {}", err);
-        }
-    }
 
-    // Wait for graceful shutdown
-    node.wait_for_shutdown().await;
+        // Wait for graceful shutdown
+        node.wait_for_shutdown().await;
 
-    println!("👋 COINjecture Node stopped");
-    println!();
+        println!("👋 COINjecture Node stopped");
+        println!();
 
-    Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+    }).await
 }
 
 fn print_banner() {
