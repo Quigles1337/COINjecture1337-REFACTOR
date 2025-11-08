@@ -8,6 +8,11 @@ repository.workspace = true
 
 [dependencies]
 coinject-core = { path = "../core" }
+coinject-state = { path = "../state" }
+coinject-mempool = { path = "../mempool" }
 jsonrpsee.workspace = true
 tokio.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+bincode.workspace = true
+hex.workspace = true

@@ -62,7 +62,7 @@ bs58 = "0.5"
 chrono = "0.4"
 
 # RPC
-jsonrpsee = { version = "0.24", features = ["server", "client"] }
+jsonrpsee = { version = "0.24", features = ["server", "client", "macros"] }
 
 [profile.release]
 opt-level = 3

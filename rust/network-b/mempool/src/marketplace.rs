@@ -320,7 +320,7 @@ impl ProblemMarketplace {
 }
 
 /// Marketplace statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketplaceStats {
     pub total_problems: usize,
     pub open_problems: usize,
