@@ -105,6 +105,23 @@ enum TransactionCommands {
         amount: u128,
     },
 
+    /// Create a time-locked transaction
+    Timelock {
+        /// Sender account name or address
+        #[arg(short, long)]
+        from: String,
+
+        /// Recipient address (who can claim after unlock)
+        to: String,
+
+        /// Amount to lock
+        amount: u128,
+
+        /// Unlock time in seconds from now (e.g., 3600 for 1 hour)
+        #[arg(short, long)]
+        unlock_in: i64,
+    },
+
     /// Get transaction status
     Status {
         /// Transaction hash (hex)
@@ -198,6 +215,9 @@ async fn handle_transaction_command(
     match cmd {
         TransactionCommands::Send { from, to, amount } => {
             transaction::send_tokens(&from, &to, amount, client).await?
+        }
+        TransactionCommands::Timelock { from, to, amount, unlock_in } => {
+            transaction::create_timelock(&from, &to, amount, unlock_in, client).await?
         }
         TransactionCommands::Status { tx_hash } => {
             transaction::get_transaction_status(&tx_hash, client).await?
