@@ -33,6 +33,7 @@ pub struct CoinjectNode {
     timelock_state: Arc<TimeLockState>,
     escrow_state: Arc<EscrowState>,
     channel_state: Arc<ChannelState>,
+    trustline_state: Arc<TrustLineState>,
     validator: Arc<BlockValidator>,
     marketplace: Arc<RwLock<ProblemMarketplace>>,
     tx_pool: Arc<RwLock<TransactionPool>>,
@@ -78,6 +79,7 @@ impl CoinjectNode {
         let timelock_state = Arc::new(TimeLockState::new(Arc::clone(&state_db)));
         let escrow_state = Arc::new(EscrowState::new(Arc::clone(&state_db)));
         let channel_state = Arc::new(ChannelState::new(Arc::clone(&state_db)));
+        let trustline_state = Arc::new(TrustLineState::new(Arc::clone(&state_db)));
 
         // Apply genesis if this is a new chain
         if best_height == 0 {
@@ -138,6 +140,7 @@ impl CoinjectNode {
             timelock_state,
             escrow_state,
             channel_state,
+            trustline_state,
             validator,
             marketplace,
             tx_pool,
@@ -248,6 +251,7 @@ impl CoinjectNode {
         let timelock_state = Arc::clone(&self.timelock_state);
         let escrow_state = Arc::clone(&self.escrow_state);
         let channel_state = Arc::clone(&self.channel_state);
+        let trustline_state = Arc::clone(&self.trustline_state);
         let validator = Arc::clone(&self.validator);
         let tx_pool = Arc::clone(&self.tx_pool);
         let network_tx_for_events = network_cmd_tx.clone();
@@ -255,7 +259,7 @@ impl CoinjectNode {
 
         tokio::spawn(async move {
             while let Some(event) = event_rx.recv().await {
-                Self::handle_network_event(event, &chain, &state, &timelock_state, &escrow_state, &channel_state, &validator, &tx_pool, &network_tx_for_events, &buffer_for_events).await;
+                Self::handle_network_event(event, &chain, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state, &validator, &tx_pool, &network_tx_for_events, &buffer_for_events).await;
             }
         });
 
@@ -289,11 +293,12 @@ impl CoinjectNode {
             let timelock_state = Arc::clone(&self.timelock_state);
             let escrow_state = Arc::clone(&self.escrow_state);
             let channel_state = Arc::clone(&self.channel_state);
+            let trustline_state = Arc::clone(&self.trustline_state);
             let tx_pool = Arc::clone(&self.tx_pool);
             let network_tx = network_cmd_tx.clone();
 
             tokio::spawn(async move {
-                Self::mining_loop(miner, chain, state, timelock_state, escrow_state, channel_state, tx_pool, network_tx).await;
+                Self::mining_loop(miner, chain, state, timelock_state, escrow_state, channel_state, trustline_state, tx_pool, network_tx).await;
             });
         }
 
@@ -308,6 +313,7 @@ impl CoinjectNode {
         timelock_state: &Arc<TimeLockState>,
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
+        trustline_state: &Arc<TrustLineState>,
         validator: &Arc<BlockValidator>,
         tx_pool: &Arc<RwLock<TransactionPool>>,
         network_tx: &mpsc::UnboundedSender<NetworkCommand>,
@@ -332,7 +338,7 @@ impl CoinjectNode {
                                 Ok(is_new_best) => {
                                     if is_new_best {
                                         // Apply block transactions to state
-                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state) {
+                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state) {
                                             Ok(applied_txs) => {
                                                 println!("✅ Block {} accepted and applied to chain", block.header.height);
 
@@ -350,6 +356,7 @@ impl CoinjectNode {
                                                     timelock_state,
                                                     escrow_state,
                                                     channel_state,
+                                                    trustline_state,
                                                     validator,
                                                     tx_pool,
                                                     block_buffer,
@@ -486,6 +493,7 @@ impl CoinjectNode {
         timelock_state: &Arc<TimeLockState>,
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
+        trustline_state: &Arc<TrustLineState>,
         validator: &Arc<BlockValidator>,
         tx_pool: &Arc<RwLock<TransactionPool>>,
         block_buffer: &Arc<RwLock<HashMap<u64, coinject_core::Block>>>,
@@ -513,7 +521,7 @@ impl CoinjectNode {
                             match chain.store_block(&block).await {
                                 Ok(is_new_best) => {
                                     if is_new_best {
-                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state) {
+                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state) {
                                             Ok(applied_txs) => {
                                                 println!("✅ Buffered block {} applied to chain", next_height);
 
@@ -563,6 +571,7 @@ impl CoinjectNode {
         timelock_state: &Arc<TimeLockState>,
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
+        trustline_state: &Arc<TrustLineState>,
     ) -> Result<Vec<coinject_core::Hash>, String> {
         // Apply coinbase reward
         let miner = block.header.miner;
@@ -577,7 +586,7 @@ impl CoinjectNode {
         // Apply regular transactions
         for tx in &block.transactions {
             // Apply the transaction
-            match Self::apply_single_transaction(tx, state, timelock_state, escrow_state, channel_state, block_height) {
+            match Self::apply_single_transaction(tx, state, timelock_state, escrow_state, channel_state, trustline_state, block_height) {
                 Ok(()) => {
                     applied_txs.push(tx.hash());
                 }
@@ -603,6 +612,7 @@ impl CoinjectNode {
         timelock_state: &Arc<TimeLockState>,
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
+        trustline_state: &Arc<TrustLineState>,
         block_height: u64,
     ) -> Result<(), String> {
         use coinject_core::{EscrowType, ChannelType};
@@ -806,6 +816,9 @@ impl CoinjectNode {
             }
 
             coinject_core::Transaction::TrustLine(trustline_tx) => {
+                use coinject_core::TrustLineType;
+                use coinject_state::{TrustLine, TrustLineStatus};
+
                 // TrustLine transactions: dimensional economics with exponential decay
                 // Validate sender has sufficient balance for fee
                 let sender_balance = state.get_balance(&trustline_tx.from);
@@ -814,15 +827,121 @@ impl CoinjectNode {
                         sender_balance, trustline_tx.fee));
                 }
 
-                // Deduct fee from sender
+                // Deduct fee from sender and increment nonce
                 state.set_balance(&trustline_tx.from, sender_balance - trustline_tx.fee)
                     .map_err(|e| format!("Failed to set sender balance: {}", e))?;
                 state.set_nonce(&trustline_tx.from, trustline_tx.nonce + 1)
                     .map_err(|e| format!("Failed to set sender nonce: {}", e))?;
 
-                // TODO: Add TrustLineState operations once state manager is integrated
-                // For now, just handle fee and nonce. State operations will be added in next task.
-                Ok(())
+                // Apply trustline state operations based on transaction type
+                match &trustline_tx.trustline_type {
+                    TrustLineType::Create {
+                        account_b,
+                        limit_a_to_b,
+                        limit_b_to_a,
+                        quality_in,
+                        quality_out,
+                        ripple_enabled,
+                        dimensional_scale,
+                    } => {
+                        // Create new bilateral trustline with dimensional economics
+                        let mut trustline = TrustLine {
+                            trustline_id: trustline_tx.trustline_id,
+                            account_a: trustline_tx.from,
+                            account_b: *account_b,
+                            limit_a_to_b: *limit_a_to_b,
+                            limit_b_to_a: *limit_b_to_a,
+                            balance: 0,
+                            quality_in: *quality_in,
+                            quality_out: *quality_out,
+                            ripple_enabled: *ripple_enabled,
+                            dimensional_scale: *dimensional_scale,
+                            tau: 0.0,
+                            viviani_delta: 0.0,
+                            status: TrustLineStatus::Active,
+                            created_at_height: block_height,
+                            modified_at_height: block_height,
+                        };
+
+                        // Initialize Viviani oracle metrics
+                        trustline.update_viviani_oracle();
+
+                        trustline_state.create_trustline(trustline)
+                            .map_err(|e| format!("Failed to create trustline: {}", e))?;
+
+                        Ok(())
+                    }
+
+                    TrustLineType::UpdateLimits { limit_a_to_b, limit_b_to_a } => {
+                        // Update credit limits on existing trustline
+                        let trustline = trustline_state.get_trustline(&trustline_tx.trustline_id)
+                            .ok_or_else(|| "TrustLine not found".to_string())?;
+
+                        // Verify sender is authorized (must be account_a or account_b)
+                        if !trustline.is_participant(&trustline_tx.from) {
+                            return Err("Not authorized to update trustline".to_string());
+                        }
+
+                        // Update limits via state manager (handles dimensional recalibration)
+                        trustline_state.update_limits(
+                            &trustline_tx.trustline_id,
+                            *limit_a_to_b,
+                            *limit_b_to_a,
+                            block_height,
+                        )?;
+
+                        Ok(())
+                    }
+
+                    TrustLineType::Freeze => {
+                        // Freeze trustline (prevents further transfers)
+                        let trustline = trustline_state.get_trustline(&trustline_tx.trustline_id)
+                            .ok_or_else(|| "TrustLine not found".to_string())?;
+
+                        // Verify sender is authorized
+                        if !trustline.is_participant(&trustline_tx.from) {
+                            return Err("Not authorized to freeze trustline".to_string());
+                        }
+
+                        trustline_state.freeze_trustline(&trustline_tx.trustline_id, block_height)?;
+                        Ok(())
+                    }
+
+                    TrustLineType::Close => {
+                        // Close trustline (requires zero balance)
+                        let trustline = trustline_state.get_trustline(&trustline_tx.trustline_id)
+                            .ok_or_else(|| "TrustLine not found".to_string())?;
+
+                        // Verify sender is authorized
+                        if !trustline.is_participant(&trustline_tx.from) {
+                            return Err("Not authorized to close trustline".to_string());
+                        }
+
+                        // close_trustline already validates zero balance internally
+                        trustline_state.close_trustline(&trustline_tx.trustline_id, block_height)?;
+                        Ok(())
+                    }
+
+                    TrustLineType::EvolvePhase { delta_tau } => {
+                        // Evolve phase parameter: θ(τ) = λτ = τ/√2
+                        let trustline = trustline_state.get_trustline(&trustline_tx.trustline_id)
+                            .ok_or_else(|| "TrustLine not found".to_string())?;
+
+                        // Verify sender is authorized
+                        if !trustline.is_participant(&trustline_tx.from) {
+                            return Err("Not authorized to evolve trustline phase".to_string());
+                        }
+
+                        // Evolve phase via state manager (handles oracle update)
+                        trustline_state.evolve_trustline_phase(
+                            &trustline_tx.trustline_id,
+                            *delta_tau,
+                            block_height,
+                        )?;
+
+                        Ok(())
+                    }
+                }
             }
         }
     }
@@ -835,6 +954,7 @@ impl CoinjectNode {
         timelock_state: Arc<TimeLockState>,
         escrow_state: Arc<EscrowState>,
         channel_state: Arc<ChannelState>,
+        trustline_state: Arc<TrustLineState>,
         tx_pool: Arc<RwLock<TransactionPool>>,
         network_tx: mpsc::UnboundedSender<NetworkCommand>,
     ) {
@@ -872,7 +992,7 @@ impl CoinjectNode {
                 }
 
                 // Apply block transactions to state
-                let applied_txs = match Self::apply_block_transactions(&block, &state, &timelock_state, &escrow_state, &channel_state) {
+                let applied_txs = match Self::apply_block_transactions(&block, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state) {
                     Ok(txs) => txs,
                     Err(e) => {
                         println!("❌ Failed to apply mined block transactions: {}", e);
