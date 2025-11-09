@@ -11,7 +11,7 @@ pub struct RewardCalculator {
 impl RewardCalculator {
     pub fn new() -> Self {
         RewardCalculator {
-            base_constant: 1000.0, // Initial constant
+            base_constant: 10_000_000.0, // 10 million base reward for testing
             epoch_average_work: 1.0,
         }
     }

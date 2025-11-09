@@ -269,11 +269,12 @@ impl CoinjectNode {
         if let Some(ref miner) = self.miner {
             let miner = Arc::clone(miner);
             let chain = Arc::clone(&self.chain);
+            let state = Arc::clone(&self.state);
             let tx_pool = Arc::clone(&self.tx_pool);
             let network_tx = network_cmd_tx.clone();
 
             tokio::spawn(async move {
-                Self::mining_loop(miner, chain, tx_pool, network_tx).await;
+                Self::mining_loop(miner, chain, state, tx_pool, network_tx).await;
             });
         }
 
@@ -309,26 +310,29 @@ impl CoinjectNode {
                                 Ok(is_new_best) => {
                                     if is_new_best {
                                         // Apply block transactions to state
-                                        if let Err(e) = Self::apply_block_transactions(&block, state) {
-                                            println!("❌ Failed to apply block transactions: {}", e);
-                                        } else {
-                                            println!("✅ Block {} accepted and applied to chain", block.header.height);
+                                        match Self::apply_block_transactions(&block, state) {
+                                            Ok(applied_txs) => {
+                                                println!("✅ Block {} accepted and applied to chain", block.header.height);
 
-                                            // Remove included transactions from pool
-                                            let mut pool = tx_pool.write().await;
-                                            for tx in &block.transactions {
-                                                pool.remove(&tx.hash());
+                                                // Remove only successfully applied transactions from pool
+                                                let mut pool = tx_pool.write().await;
+                                                for tx_hash in &applied_txs {
+                                                    pool.remove(tx_hash);
+                                                }
+                                                drop(pool);
+
+                                                // After applying this block, try to apply buffered blocks sequentially
+                                                Self::process_buffered_blocks(
+                                                    chain,
+                                                    state,
+                                                    validator,
+                                                    tx_pool,
+                                                    block_buffer,
+                                                ).await;
                                             }
-                                            drop(pool);
-
-                                            // After applying this block, try to apply buffered blocks sequentially
-                                            Self::process_buffered_blocks(
-                                                chain,
-                                                state,
-                                                validator,
-                                                tx_pool,
-                                                block_buffer,
-                                            ).await;
+                                            Err(e) => {
+                                                println!("❌ Failed to apply block transactions: {}", e);
+                                            }
                                         }
                                     }
                                 }
@@ -481,20 +485,23 @@ impl CoinjectNode {
                             match chain.store_block(&block).await {
                                 Ok(is_new_best) => {
                                     if is_new_best {
-                                        if let Err(e) = Self::apply_block_transactions(&block, state) {
-                                            println!("❌ Failed to apply buffered block transactions: {}", e);
-                                            break;
-                                        } else {
-                                            println!("✅ Buffered block {} applied to chain", next_height);
+                                        match Self::apply_block_transactions(&block, state) {
+                                            Ok(applied_txs) => {
+                                                println!("✅ Buffered block {} applied to chain", next_height);
 
-                                            // Remove included transactions from pool
-                                            let mut pool = tx_pool.write().await;
-                                            for tx in &block.transactions {
-                                                pool.remove(&tx.hash());
+                                                // Remove only successfully applied transactions from pool
+                                                let mut pool = tx_pool.write().await;
+                                                for tx_hash in &applied_txs {
+                                                    pool.remove(tx_hash);
+                                                }
+                                                drop(pool);
+
+                                                // Continue loop to check for next sequential block
                                             }
-                                            drop(pool);
-
-                                            // Continue loop to check for next sequential block
+                                            Err(e) => {
+                                                println!("❌ Failed to apply buffered block transactions: {}", e);
+                                                break;
+                                            }
                                         }
                                     } else {
                                         break;
@@ -521,10 +528,11 @@ impl CoinjectNode {
     }
 
     /// Apply block transactions to account state
+    /// Returns a vector of successfully applied transaction hashes
     fn apply_block_transactions(
         block: &coinject_core::Block,
         state: &Arc<AccountState>,
-    ) -> Result<(), String> {
+    ) -> Result<Vec<coinject_core::Hash>, String> {
         // Apply coinbase reward
         let miner = block.header.miner;
         let reward = block.coinbase.reward;
@@ -532,26 +540,58 @@ impl CoinjectNode {
         state.set_balance(&miner, current_balance + reward)
             .map_err(|e| format!("Failed to set miner balance: {}", e))?;
 
+        let mut applied_txs = Vec::new();
+
         // Apply regular transactions
         for tx in &block.transactions {
-            // Deduct from sender
+            // Validate transaction before applying
             let sender_balance = state.get_balance(&tx.from);
+
+            // Check if sender has sufficient balance
             if sender_balance < tx.amount + tx.fee {
-                return Err(format!("Insufficient balance for tx {:?}", tx.hash()));
+                println!("⚠️  Skipping transaction {:?}: insufficient balance (has: {}, needs: {})",
+                    tx.hash(), sender_balance, tx.amount + tx.fee);
+                continue; // Skip this transaction and continue with the rest
             }
-            state.set_balance(&tx.from, sender_balance - tx.amount - tx.fee)
-                .map_err(|e| format!("Failed to set sender balance: {}", e))?;
-            state.set_nonce(&tx.from, tx.nonce + 1)
-                .map_err(|e| format!("Failed to set sender nonce: {}", e))?;
 
-            // Credit recipient
-            let recipient_balance = state.get_balance(&tx.to);
-            state.set_balance(&tx.to, recipient_balance + tx.amount)
-                .map_err(|e| format!("Failed to set recipient balance: {}", e))?;
-
-            // Fee goes to miner (already included in reward calculation)
+            // Apply the transaction
+            match Self::apply_single_transaction(tx, state) {
+                Ok(()) => {
+                    applied_txs.push(tx.hash());
+                }
+                Err(e) => {
+                    println!("⚠️  Skipping transaction {:?}: {}", tx.hash(), e);
+                    continue; // Skip this transaction and continue with the rest
+                }
+            }
         }
 
+        if applied_txs.len() < block.transactions.len() {
+            println!("📊 Applied {}/{} transactions from block",
+                applied_txs.len(), block.transactions.len());
+        }
+
+        Ok(applied_txs)
+    }
+
+    /// Apply a single transaction to state
+    fn apply_single_transaction(
+        tx: &coinject_core::Transaction,
+        state: &Arc<AccountState>,
+    ) -> Result<(), String> {
+        // Deduct from sender
+        let sender_balance = state.get_balance(&tx.from);
+        state.set_balance(&tx.from, sender_balance - tx.amount - tx.fee)
+            .map_err(|e| format!("Failed to set sender balance: {}", e))?;
+        state.set_nonce(&tx.from, tx.nonce + 1)
+            .map_err(|e| format!("Failed to set sender nonce: {}", e))?;
+
+        // Credit recipient
+        let recipient_balance = state.get_balance(&tx.to);
+        state.set_balance(&tx.to, recipient_balance + tx.amount)
+            .map_err(|e| format!("Failed to set recipient balance: {}", e))?;
+
+        // Fee goes to miner (already included in reward calculation)
         Ok(())
     }
 
@@ -559,6 +599,7 @@ impl CoinjectNode {
     async fn mining_loop(
         miner: Arc<RwLock<Miner>>,
         chain: Arc<ChainState>,
+        state: Arc<AccountState>,
         tx_pool: Arc<RwLock<TransactionPool>>,
         network_tx: mpsc::UnboundedSender<NetworkCommand>,
     ) {
@@ -594,10 +635,19 @@ impl CoinjectNode {
                     continue;
                 }
 
-                // Remove mined transactions from pool
+                // Apply block transactions to state
+                let applied_txs = match Self::apply_block_transactions(&block, &state) {
+                    Ok(txs) => txs,
+                    Err(e) => {
+                        println!("❌ Failed to apply mined block transactions: {}", e);
+                        continue;
+                    }
+                };
+
+                // Remove only successfully applied transactions from pool
                 let mut pool = tx_pool.write().await;
-                for tx in &transactions {
-                    pool.remove(&tx.hash());
+                for tx_hash in &applied_txs {
+                    pool.remove(tx_hash);
                 }
                 drop(pool);
 

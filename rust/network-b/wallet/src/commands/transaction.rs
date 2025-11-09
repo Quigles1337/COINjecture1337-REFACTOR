@@ -48,8 +48,10 @@ pub async fn send_tokens(
     // Get current nonce
     let nonce = client.get_nonce(&sender.address).await?;
 
-    // TODO: Make fee configurable
-    let fee = 100u128; // Default fee
+    // Fee calculation for EIP-1559 style fee market
+    // Default: 1000 base fee + 500 priority fee = 1500 total
+    // TODO: Query actual base fee from RPC and make priority fee configurable
+    let fee = 1500u128; // base_fee (1000) + priority_fee (500)
 
     println!();
     println!("{}", "Transaction Details".cyan().bold());
