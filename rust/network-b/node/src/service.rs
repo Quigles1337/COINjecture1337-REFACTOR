@@ -10,7 +10,7 @@ use coinject_core::Address;
 use coinject_mempool::{ProblemMarketplace, TransactionPool};
 use coinject_network::{NetworkConfig, NetworkEvent, NetworkService};
 use coinject_rpc::{RpcServer, RpcServerState};
-use coinject_state::{AccountState, TimeLockState, EscrowState, ChannelState};
+use coinject_state::{AccountState, TimeLockState, EscrowState, ChannelState, TrustLineState};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -803,6 +803,26 @@ impl CoinjectNode {
                         Ok(())
                     }
                 }
+            }
+
+            coinject_core::Transaction::TrustLine(trustline_tx) => {
+                // TrustLine transactions: dimensional economics with exponential decay
+                // Validate sender has sufficient balance for fee
+                let sender_balance = state.get_balance(&trustline_tx.from);
+                if sender_balance < trustline_tx.fee {
+                    return Err(format!("Insufficient balance for trustline fee: has {}, needs {}",
+                        sender_balance, trustline_tx.fee));
+                }
+
+                // Deduct fee from sender
+                state.set_balance(&trustline_tx.from, sender_balance - trustline_tx.fee)
+                    .map_err(|e| format!("Failed to set sender balance: {}", e))?;
+                state.set_nonce(&trustline_tx.from, trustline_tx.nonce + 1)
+                    .map_err(|e| format!("Failed to set sender nonce: {}", e))?;
+
+                // TODO: Add TrustLineState operations once state manager is integrated
+                // For now, just handle fee and nonce. State operations will be added in next task.
+                Ok(())
             }
         }
     }

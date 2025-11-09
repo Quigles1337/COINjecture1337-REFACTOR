@@ -12,6 +12,8 @@ pub enum Transaction {
     Escrow(EscrowTransaction),
     /// Payment channel operations
     Channel(ChannelTransaction),
+    /// TrustLine operations with dimensional economics
+    TrustLine(TrustLineTransaction),
 }
 
 /// Simple transfer transaction (original transaction type)
@@ -144,6 +146,53 @@ pub enum ChannelType {
     },
 }
 
+/// TrustLine transaction with dimensional economics
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TrustLineTransaction {
+    /// Type of trustline operation
+    pub trustline_type: TrustLineType,
+    /// Unique trustline identifier
+    pub trustline_id: Hash,
+    /// Initiator address
+    pub from: Address,
+    /// Transaction fee
+    pub fee: Balance,
+    /// Nonce
+    pub nonce: u64,
+    /// Initiator's public key
+    pub public_key: PublicKey,
+    /// Ed25519 signature
+    pub signature: Ed25519Signature,
+}
+
+/// Type of trustline operation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum TrustLineType {
+    /// Create a new bilateral trustline
+    Create {
+        account_b: Address,
+        limit_a_to_b: Balance,
+        limit_b_to_a: Balance,
+        quality_in: u16,           // Basis points (0-10000)
+        quality_out: u16,          // Basis points (0-10000)
+        ripple_enabled: bool,
+        dimensional_scale: u8,     // 1-8
+    },
+    /// Update credit limits on existing trustline
+    UpdateLimits {
+        limit_a_to_b: Option<Balance>,
+        limit_b_to_a: Option<Balance>,
+    },
+    /// Freeze trustline
+    Freeze,
+    /// Close trustline (requires zero balance)
+    Close,
+    /// Evolve phase parameter (periodic dimensional adjustment)
+    EvolvePhase {
+        delta_tau: f64,
+    },
+}
+
 impl Transaction {
     /// Create and sign a new transfer transaction
     pub fn new_transfer(
@@ -179,6 +228,7 @@ impl Transaction {
             Transaction::TimeLock(tx) => tx.verify_signature(),
             Transaction::Escrow(tx) => tx.verify_signature(),
             Transaction::Channel(tx) => tx.verify_signature(),
+            Transaction::TrustLine(tx) => tx.verify_signature(),
         }
     }
 
@@ -195,6 +245,7 @@ impl Transaction {
             Transaction::TimeLock(tx) => tx.is_valid(),
             Transaction::Escrow(tx) => tx.is_valid(),
             Transaction::Channel(tx) => tx.is_valid(),
+            Transaction::TrustLine(tx) => tx.is_valid(),
         }
     }
 
@@ -205,6 +256,7 @@ impl Transaction {
             Transaction::TimeLock(tx) => &tx.from,
             Transaction::Escrow(tx) => &tx.from,
             Transaction::Channel(tx) => &tx.from,
+            Transaction::TrustLine(tx) => &tx.from,
         }
     }
 
@@ -215,6 +267,7 @@ impl Transaction {
             Transaction::TimeLock(tx) => tx.fee,
             Transaction::Escrow(tx) => tx.fee,
             Transaction::Channel(tx) => tx.fee,
+            Transaction::TrustLine(tx) => tx.fee,
         }
     }
 
@@ -225,6 +278,7 @@ impl Transaction {
             Transaction::TimeLock(tx) => tx.nonce,
             Transaction::Escrow(tx) => tx.nonce,
             Transaction::Channel(tx) => tx.nonce,
+            Transaction::TrustLine(tx) => tx.nonce,
         }
     }
 
@@ -526,6 +580,133 @@ impl CoinbaseTransaction {
     pub fn hash(&self) -> Hash {
         let serialized = bincode::serialize(self).unwrap_or_default();
         Hash::new(&serialized)
+    }
+}
+
+impl TrustLineTransaction {
+    /// Create and sign a new trustline transaction
+    pub fn new(
+        trustline_type: TrustLineType,
+        trustline_id: Hash,
+        from: Address,
+        fee: Balance,
+        nonce: u64,
+        keypair: &crate::crypto::KeyPair,
+    ) -> Self {
+        let public_key = keypair.public_key();
+
+        // Create unsigned transaction
+        let mut tx = TrustLineTransaction {
+            trustline_type,
+            trustline_id,
+            from,
+            fee,
+            nonce,
+            public_key,
+            signature: Ed25519Signature::from_bytes([0u8; 64]),
+        };
+
+        // Sign it
+        let message = tx.signing_message();
+        tx.signature = keypair.sign(&message);
+
+        tx
+    }
+
+    /// Get message to sign (excludes signature)
+    fn signing_message(&self) -> Vec<u8> {
+        let mut msg = Vec::new();
+
+        // Add trustline_id
+        msg.extend_from_slice(self.trustline_id.as_bytes());
+
+        // Add from address
+        msg.extend_from_slice(self.from.as_bytes());
+
+        // Add fee
+        msg.extend_from_slice(&self.fee.to_le_bytes());
+
+        // Add nonce
+        msg.extend_from_slice(&self.nonce.to_le_bytes());
+
+        // Add public key
+        msg.extend_from_slice(self.public_key.as_bytes());
+
+        // Add trustline type (serialized)
+        if let Ok(type_bytes) = bincode::serialize(&self.trustline_type) {
+            msg.extend_from_slice(&type_bytes);
+        }
+
+        msg
+    }
+
+    /// Verify transaction signature
+    pub fn verify_signature(&self) -> bool {
+        let message = self.signing_message();
+        self.public_key.verify(&message, &self.signature)
+    }
+
+    /// Check if transaction is valid (basic checks)
+    pub fn is_valid(&self) -> bool {
+        // 1. Signature must be valid
+        if !self.verify_signature() {
+            return false;
+        }
+
+        // 2. Sender address must match public key
+        if self.from != self.public_key.to_address() {
+            return false;
+        }
+
+        // 3. Validate trustline type specific constraints
+        match &self.trustline_type {
+            TrustLineType::Create {
+                account_b,
+                limit_a_to_b,
+                limit_b_to_a,
+                quality_in,
+                quality_out,
+                dimensional_scale,
+                ..
+            } => {
+                // Cannot create trustline with self
+                if self.from == *account_b {
+                    return false;
+                }
+
+                // Limits must be non-zero
+                if *limit_a_to_b == 0 && *limit_b_to_a == 0 {
+                    return false;
+                }
+
+                // Quality parameters must be valid (basis points 0-10000)
+                if *quality_in > 10000 || *quality_out > 10000 {
+                    return false;
+                }
+
+                // Dimensional scale must be 1-8
+                if *dimensional_scale < 1 || *dimensional_scale > 8 {
+                    return false;
+                }
+            }
+            TrustLineType::UpdateLimits { limit_a_to_b, limit_b_to_a } => {
+                // At least one limit must be specified
+                if limit_a_to_b.is_none() && limit_b_to_a.is_none() {
+                    return false;
+                }
+            }
+            TrustLineType::EvolvePhase { delta_tau } => {
+                // Delta tau must be positive and reasonable
+                if *delta_tau <= 0.0 || *delta_tau > 100.0 {
+                    return false;
+                }
+            }
+            TrustLineType::Freeze | TrustLineType::Close => {
+                // No additional validation needed
+            }
+        }
+
+        true
     }
 }
 

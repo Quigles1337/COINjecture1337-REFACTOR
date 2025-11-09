@@ -409,6 +409,46 @@ impl BlockValidator {
                         .increment_nonce(&channel_tx.from)
                         .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
                 }
+                coinject_core::Transaction::TrustLine(trustline_tx) => {
+                    // TrustLine transactions: dimensional economics with exponential decay
+                    // Verify sender has sufficient balance for fee
+                    let sender_balance = state.get_balance(&trustline_tx.from);
+
+                    if sender_balance < trustline_tx.fee {
+                        return Err(ValidationError::InvalidTransaction(format!(
+                            "Insufficient balance for trustline fee: has {}, needs {}",
+                            sender_balance, trustline_tx.fee
+                        )));
+                    }
+
+                    // Verify nonce
+                    let expected_nonce = state.get_nonce(&trustline_tx.from);
+                    if trustline_tx.nonce != expected_nonce {
+                        return Err(ValidationError::InvalidTransaction(format!(
+                            "Invalid nonce: expected {}, got {}",
+                            expected_nonce, trustline_tx.nonce
+                        )));
+                    }
+
+                    // Deduct fee from sender
+                    state
+                        .set_balance(&trustline_tx.from, sender_balance - trustline_tx.fee)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // Transfer fee to miner (maintains economic incentives)
+                    let miner_balance = state.get_balance(&block.header.miner);
+                    state
+                        .set_balance(&block.header.miner, miner_balance + trustline_tx.fee)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // Increment nonce
+                    state
+                        .increment_nonce(&trustline_tx.from)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // TODO: Add TrustLineState operations once state manager is integrated
+                    // The trustline state should be managed separately with dimensional economics
+                }
             }
         }
 
