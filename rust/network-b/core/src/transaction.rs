@@ -14,6 +14,8 @@ pub enum Transaction {
     Channel(ChannelTransaction),
     /// TrustLine operations with dimensional economics
     TrustLine(TrustLineTransaction),
+    /// Dimensional pool swap operations (exponential tokenomics)
+    DimensionalPoolSwap(PoolSwapTransaction),
 }
 
 /// Simple transfer transaction (original transaction type)
@@ -193,6 +195,42 @@ pub enum TrustLineType {
     },
 }
 
+/// Dimensional pool types based on exponential tokenomics
+/// Mathematics: Dn = e^(-η·τn) where η = λ = 1/√2 (Satoshi Constant)
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
+pub enum DimensionalPool {
+    /// D₁: Genesis scale (τ=0.00, D=1.000) - Immediate liquidity
+    D1,
+    /// D₂: Coupling scale (τ=0.20, D=0.867) - Short-term staking
+    D2,
+    /// D₃: First Harmonic (τ=0.41, D=0.750) - Primary liquidity
+    D3,
+}
+
+/// Dimensional pool swap transaction
+/// Implements exponential dimensional tokenomics from COINjecture white paper
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PoolSwapTransaction {
+    /// Pool to swap from
+    pub pool_from: DimensionalPool,
+    /// Pool to swap to
+    pub pool_to: DimensionalPool,
+    /// Sender address
+    pub from: Address,
+    /// Amount of tokens to swap from source pool
+    pub amount_in: Balance,
+    /// Minimum amount expected from destination pool (slippage protection)
+    pub min_amount_out: Balance,
+    /// Transaction fee
+    pub fee: Balance,
+    /// Nonce (prevents replay attacks)
+    pub nonce: u64,
+    /// Public key for signature verification
+    pub public_key: PublicKey,
+    /// Transaction signature
+    pub signature: Ed25519Signature,
+}
+
 impl Transaction {
     /// Create and sign a new transfer transaction
     pub fn new_transfer(
@@ -229,6 +267,7 @@ impl Transaction {
             Transaction::Escrow(tx) => tx.verify_signature(),
             Transaction::Channel(tx) => tx.verify_signature(),
             Transaction::TrustLine(tx) => tx.verify_signature(),
+            Transaction::DimensionalPoolSwap(tx) => tx.verify_signature(),
         }
     }
 
@@ -246,6 +285,7 @@ impl Transaction {
             Transaction::Escrow(tx) => tx.is_valid(),
             Transaction::Channel(tx) => tx.is_valid(),
             Transaction::TrustLine(tx) => tx.is_valid(),
+            Transaction::DimensionalPoolSwap(tx) => tx.is_valid(),
         }
     }
 
@@ -257,6 +297,7 @@ impl Transaction {
             Transaction::Escrow(tx) => &tx.from,
             Transaction::Channel(tx) => &tx.from,
             Transaction::TrustLine(tx) => &tx.from,
+            Transaction::DimensionalPoolSwap(tx) => &tx.from,
         }
     }
 
@@ -268,6 +309,7 @@ impl Transaction {
             Transaction::Escrow(tx) => tx.fee,
             Transaction::Channel(tx) => tx.fee,
             Transaction::TrustLine(tx) => tx.fee,
+            Transaction::DimensionalPoolSwap(tx) => tx.fee,
         }
     }
 
@@ -279,6 +321,7 @@ impl Transaction {
             Transaction::Escrow(tx) => tx.nonce,
             Transaction::Channel(tx) => tx.nonce,
             Transaction::TrustLine(tx) => tx.nonce,
+            Transaction::DimensionalPoolSwap(tx) => tx.nonce,
         }
     }
 
@@ -704,6 +747,107 @@ impl TrustLineTransaction {
             TrustLineType::Freeze | TrustLineType::Close => {
                 // No additional validation needed
             }
+        }
+
+        true
+    }
+}
+
+impl PoolSwapTransaction {
+    /// Create and sign a new pool swap transaction
+    pub fn new(
+        pool_from: DimensionalPool,
+        pool_to: DimensionalPool,
+        from: Address,
+        amount_in: Balance,
+        min_amount_out: Balance,
+        fee: Balance,
+        nonce: u64,
+        keypair: &crate::crypto::KeyPair,
+    ) -> Self {
+        let public_key = keypair.public_key().clone();
+
+        // Create unsigned transaction
+        let mut tx = PoolSwapTransaction {
+            pool_from,
+            pool_to,
+            from,
+            amount_in,
+            min_amount_out,
+            fee,
+            nonce,
+            public_key,
+            signature: Ed25519Signature::from_bytes([0u8; 64]),
+        };
+
+        // Sign the transaction
+        let message = tx.signing_message();
+        tx.signature = keypair.sign(&message);
+
+        tx
+    }
+
+    /// Generate the message to be signed
+    fn signing_message(&self) -> Vec<u8> {
+        let mut message = Vec::new();
+
+        // Serialize pool types as u8
+        message.push(self.pool_from as u8);
+        message.push(self.pool_to as u8);
+
+        // Add address
+        message.extend_from_slice(self.from.as_bytes());
+
+        // Add amounts
+        message.extend_from_slice(&self.amount_in.to_le_bytes());
+        message.extend_from_slice(&self.min_amount_out.to_le_bytes());
+        message.extend_from_slice(&self.fee.to_le_bytes());
+
+        // Add nonce
+        message.extend_from_slice(&self.nonce.to_le_bytes());
+
+        // Add public key
+        message.extend_from_slice(self.public_key.as_bytes());
+
+        message
+    }
+
+    /// Verify the transaction signature
+    pub fn verify_signature(&self) -> bool {
+        let message = self.signing_message();
+        self.public_key.verify(&message, &self.signature)
+    }
+
+    /// Validate the transaction (business logic checks)
+    pub fn is_valid(&self) -> bool {
+        // Verify signature first
+        if !self.verify_signature() {
+            return false;
+        }
+
+        // Address derived from public key must match from address
+        if self.from != self.public_key.to_address() {
+            return false;
+        }
+
+        // Cannot swap to same pool
+        if self.pool_from == self.pool_to {
+            return false;
+        }
+
+        // Amount in must be non-zero
+        if self.amount_in == 0 {
+            return false;
+        }
+
+        // Min amount out should be reasonable (not zero, not exceeding input)
+        if self.min_amount_out == 0 || self.min_amount_out > self.amount_in * 2 {
+            return false;
+        }
+
+        // Fee should be reasonable
+        if self.fee > self.amount_in {
+            return false;
         }
 
         true

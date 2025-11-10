@@ -449,6 +449,46 @@ impl BlockValidator {
                     // TODO: Add TrustLineState operations once state manager is integrated
                     // The trustline state should be managed separately with dimensional economics
                 }
+                coinject_core::Transaction::DimensionalPoolSwap(pool_swap_tx) => {
+                    // Dimensional pool swaps: exponential tokenomics with η = λ = 1/√2
+                    // Verify sender has sufficient balance for fee
+                    let sender_balance = state.get_balance(&pool_swap_tx.from);
+
+                    if sender_balance < pool_swap_tx.fee {
+                        return Err(ValidationError::InvalidTransaction(format!(
+                            "Insufficient balance for pool swap fee: has {}, needs {}",
+                            sender_balance, pool_swap_tx.fee
+                        )));
+                    }
+
+                    // Verify nonce
+                    let expected_nonce = state.get_nonce(&pool_swap_tx.from);
+                    if pool_swap_tx.nonce != expected_nonce {
+                        return Err(ValidationError::InvalidTransaction(format!(
+                            "Invalid nonce: expected {}, got {}",
+                            expected_nonce, pool_swap_tx.nonce
+                        )));
+                    }
+
+                    // Deduct fee from sender
+                    state
+                        .set_balance(&pool_swap_tx.from, sender_balance - pool_swap_tx.fee)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // Transfer fee to miner
+                    let miner_balance = state.get_balance(&block.header.miner);
+                    state
+                        .set_balance(&block.header.miner, miner_balance + pool_swap_tx.fee)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // Increment nonce
+                    state
+                        .increment_nonce(&pool_swap_tx.from)
+                        .map_err(|e| ValidationError::StateError(format!("{:?}", e)))?;
+
+                    // Pool swap execution is handled in service.rs apply_single_transaction
+                    // Validator only checks balance, nonce, and basic transaction validity
+                }
             }
         }
 

@@ -10,7 +10,7 @@ use coinject_core::Address;
 use coinject_mempool::{ProblemMarketplace, TransactionPool};
 use coinject_network::{NetworkConfig, NetworkEvent, NetworkService};
 use coinject_rpc::{RpcServer, RpcServerState};
-use coinject_state::{AccountState, TimeLockState, EscrowState, ChannelState, TrustLineState};
+use coinject_state::{AccountState, TimeLockState, EscrowState, ChannelState, TrustLineState, DimensionalPoolState};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -34,6 +34,7 @@ pub struct CoinjectNode {
     escrow_state: Arc<EscrowState>,
     channel_state: Arc<ChannelState>,
     trustline_state: Arc<TrustLineState>,
+    dimensional_pool_state: Arc<DimensionalPoolState>,
     validator: Arc<BlockValidator>,
     marketplace: Arc<RwLock<ProblemMarketplace>>,
     tx_pool: Arc<RwLock<TransactionPool>>,
@@ -80,6 +81,7 @@ impl CoinjectNode {
         let escrow_state = Arc::new(EscrowState::new(Arc::clone(&state_db)));
         let channel_state = Arc::new(ChannelState::new(Arc::clone(&state_db)));
         let trustline_state = Arc::new(TrustLineState::new(Arc::clone(&state_db)));
+        let dimensional_pool_state = Arc::new(DimensionalPoolState::new(Arc::clone(&state_db)));
 
         // Apply genesis if this is a new chain
         if best_height == 0 {
@@ -88,6 +90,10 @@ impl CoinjectNode {
             let genesis_reward = genesis.coinbase.reward;
             state.set_balance(&genesis_addr, genesis_reward)?;
             println!("   Genesis account funded with {} tokens", genesis_reward);
+
+            // Initialize dimensional pools with genesis liquidity
+            println!("   Initializing dimensional pools...");
+            dimensional_pool_state.initialize_pools(genesis_reward, 0)?;
         }
         println!();
 
@@ -141,6 +147,7 @@ impl CoinjectNode {
             escrow_state,
             channel_state,
             trustline_state,
+            dimensional_pool_state,
             validator,
             marketplace,
             tx_pool,
@@ -252,6 +259,7 @@ impl CoinjectNode {
         let escrow_state = Arc::clone(&self.escrow_state);
         let channel_state = Arc::clone(&self.channel_state);
         let trustline_state = Arc::clone(&self.trustline_state);
+        let dimensional_pool_state = Arc::clone(&self.dimensional_pool_state);
         let validator = Arc::clone(&self.validator);
         let tx_pool = Arc::clone(&self.tx_pool);
         let network_tx_for_events = network_cmd_tx.clone();
@@ -259,7 +267,7 @@ impl CoinjectNode {
 
         tokio::spawn(async move {
             while let Some(event) = event_rx.recv().await {
-                Self::handle_network_event(event, &chain, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state, &validator, &tx_pool, &network_tx_for_events, &buffer_for_events).await;
+                Self::handle_network_event(event, &chain, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state, &dimensional_pool_state, &validator, &tx_pool, &network_tx_for_events, &buffer_for_events).await;
             }
         });
 
@@ -294,11 +302,12 @@ impl CoinjectNode {
             let escrow_state = Arc::clone(&self.escrow_state);
             let channel_state = Arc::clone(&self.channel_state);
             let trustline_state = Arc::clone(&self.trustline_state);
+            let dimensional_pool_state = Arc::clone(&self.dimensional_pool_state);
             let tx_pool = Arc::clone(&self.tx_pool);
             let network_tx = network_cmd_tx.clone();
 
             tokio::spawn(async move {
-                Self::mining_loop(miner, chain, state, timelock_state, escrow_state, channel_state, trustline_state, tx_pool, network_tx).await;
+                Self::mining_loop(miner, chain, state, timelock_state, escrow_state, channel_state, trustline_state, dimensional_pool_state, tx_pool, network_tx).await;
             });
         }
 
@@ -314,6 +323,7 @@ impl CoinjectNode {
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
         trustline_state: &Arc<TrustLineState>,
+        dimensional_pool_state: &Arc<DimensionalPoolState>,
         validator: &Arc<BlockValidator>,
         tx_pool: &Arc<RwLock<TransactionPool>>,
         network_tx: &mpsc::UnboundedSender<NetworkCommand>,
@@ -338,7 +348,7 @@ impl CoinjectNode {
                                 Ok(is_new_best) => {
                                     if is_new_best {
                                         // Apply block transactions to state
-                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state) {
+                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state, dimensional_pool_state) {
                                             Ok(applied_txs) => {
                                                 println!("✅ Block {} accepted and applied to chain", block.header.height);
 
@@ -357,6 +367,7 @@ impl CoinjectNode {
                                                     escrow_state,
                                                     channel_state,
                                                     trustline_state,
+                                                    dimensional_pool_state,
                                                     validator,
                                                     tx_pool,
                                                     block_buffer,
@@ -494,6 +505,7 @@ impl CoinjectNode {
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
         trustline_state: &Arc<TrustLineState>,
+        dimensional_pool_state: &Arc<DimensionalPoolState>,
         validator: &Arc<BlockValidator>,
         tx_pool: &Arc<RwLock<TransactionPool>>,
         block_buffer: &Arc<RwLock<HashMap<u64, coinject_core::Block>>>,
@@ -521,7 +533,7 @@ impl CoinjectNode {
                             match chain.store_block(&block).await {
                                 Ok(is_new_best) => {
                                     if is_new_best {
-                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state) {
+                                        match Self::apply_block_transactions(&block, state, timelock_state, escrow_state, channel_state, trustline_state, dimensional_pool_state) {
                                             Ok(applied_txs) => {
                                                 println!("✅ Buffered block {} applied to chain", next_height);
 
@@ -572,6 +584,7 @@ impl CoinjectNode {
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
         trustline_state: &Arc<TrustLineState>,
+        dimensional_pool_state: &Arc<DimensionalPoolState>,
     ) -> Result<Vec<coinject_core::Hash>, String> {
         // Apply coinbase reward
         let miner = block.header.miner;
@@ -586,7 +599,7 @@ impl CoinjectNode {
         // Apply regular transactions
         for tx in &block.transactions {
             // Apply the transaction
-            match Self::apply_single_transaction(tx, state, timelock_state, escrow_state, channel_state, trustline_state, block_height) {
+            match Self::apply_single_transaction(tx, state, timelock_state, escrow_state, channel_state, trustline_state, dimensional_pool_state, block_height) {
                 Ok(()) => {
                     applied_txs.push(tx.hash());
                 }
@@ -613,6 +626,7 @@ impl CoinjectNode {
         escrow_state: &Arc<EscrowState>,
         channel_state: &Arc<ChannelState>,
         trustline_state: &Arc<TrustLineState>,
+        dimensional_pool_state: &Arc<DimensionalPoolState>,
         block_height: u64,
     ) -> Result<(), String> {
         use coinject_core::{EscrowType, ChannelType};
@@ -943,6 +957,44 @@ impl CoinjectNode {
                     }
                 }
             }
+
+            coinject_core::Transaction::DimensionalPoolSwap(pool_swap_tx) => {
+                // Dimensional pool swap: exponential tokenomics with adaptive ratios
+                // Validate sender has sufficient balance for fee
+                let sender_balance = state.get_balance(&pool_swap_tx.from);
+                if sender_balance < pool_swap_tx.fee {
+                    return Err(format!("Insufficient balance for pool swap fee: has {}, needs {}",
+                        sender_balance, pool_swap_tx.fee));
+                }
+
+                // Deduct fee from sender and increment nonce
+                state.set_balance(&pool_swap_tx.from, sender_balance - pool_swap_tx.fee)
+                    .map_err(|e| format!("Failed to set sender balance: {}", e))?;
+                state.set_nonce(&pool_swap_tx.from, pool_swap_tx.nonce + 1)
+                    .map_err(|e| format!("Failed to set sender nonce: {}", e))?;
+
+                // Execute dimensional pool swap with exponential scaling
+                let amount_out = dimensional_pool_state.execute_swap(
+                    pool_swap_tx.pool_from,
+                    pool_swap_tx.pool_to,
+                    pool_swap_tx.amount_in,
+                    pool_swap_tx.min_amount_out,
+                    block_height,
+                )?;
+
+                // Record the swap transaction
+                dimensional_pool_state.record_swap(
+                    tx.hash(),
+                    pool_swap_tx.from,
+                    pool_swap_tx.pool_from,
+                    pool_swap_tx.pool_to,
+                    pool_swap_tx.amount_in,
+                    amount_out,
+                    block_height,
+                )?;
+
+                Ok(())
+            }
         }
     }
 
@@ -955,6 +1007,7 @@ impl CoinjectNode {
         escrow_state: Arc<EscrowState>,
         channel_state: Arc<ChannelState>,
         trustline_state: Arc<TrustLineState>,
+        dimensional_pool_state: Arc<DimensionalPoolState>,
         tx_pool: Arc<RwLock<TransactionPool>>,
         network_tx: mpsc::UnboundedSender<NetworkCommand>,
     ) {
@@ -992,7 +1045,7 @@ impl CoinjectNode {
                 }
 
                 // Apply block transactions to state
-                let applied_txs = match Self::apply_block_transactions(&block, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state) {
+                let applied_txs = match Self::apply_block_transactions(&block, &state, &timelock_state, &escrow_state, &channel_state, &trustline_state, &dimensional_pool_state) {
                     Ok(txs) => txs,
                     Err(e) => {
                         println!("❌ Failed to apply mined block transactions: {}", e);
